@@ -33,8 +33,15 @@ install -m 755 "$APP_DIR/bin/lightsoft-secrets" "$CLI_DIR/lightsoft-secrets"
 
 sed -e "s|__HOME__|$HOME|g" "$SRC_DIR/$LABEL.plist" > "$PLIST"
 chmod 644 "$PLIST"
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
+DOMAIN="gui/$(id -u)"
+launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+# bootout returns before the old job is fully removed; bootstrapping too early
+# fails with "5: Input/output error". Wait for it to go, then retry once.
+for _ in $(seq 1 20); do
+  launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 || break
+  sleep 0.5
+done
+launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null || { sleep 2; launchctl bootstrap "$DOMAIN" "$PLIST"; }
 
 for _ in $(seq 1 20); do
   if curl -fsS http://127.0.0.1:13300/lightsoft-secrets/health >/dev/null 2>&1; then

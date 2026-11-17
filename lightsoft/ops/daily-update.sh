@@ -119,6 +119,18 @@ prune_backups() {
   done
 }
 
+prune_old_images() {  # keep only $1 (current) and $2 (previous, the rollback target)
+  local img tag
+  for img in multica-backend multica-web; do
+    docker images --format '{{.Tag}}' "ghcr.io/multica-ai/$img" | while read -r tag; do
+      case "$tag" in
+        "$1"|"$2") ;;
+        *) docker rmi "ghcr.io/multica-ai/$img:$tag" >/dev/null 2>&1 && log "removed old image $img:$tag" ;;
+      esac
+    done
+  done
+}
+
 update_production() {
   local cur new want backup
   cur="$(env_get MULTICA_IMAGE_TAG)"
@@ -143,6 +155,7 @@ update_production() {
   if wait_backend "$want"; then
     changed "운영 Multica $cur → $new 업그레이드 (DB 백업: \`$backup\`)"
     prune_backups
+    prune_old_images "$new" "$cur"
   else
     log "production: $new did not become healthy — rolling images back to $cur"
     env_set MULTICA_IMAGE_TAG "$cur"

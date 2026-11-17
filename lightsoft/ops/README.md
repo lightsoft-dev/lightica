@@ -4,7 +4,7 @@
 
 | 순서 | 대상 | 동작 |
 |---|---|---|
-| 1 | 운영 Multica (`~/.multica/server`) | upstream 최신 **릴리스**가 현재 `MULTICA_IMAGE_TAG`보다 새것이고 ghcr 이미지가 올라와 있으면 진행합니다. `pg_dump` 백업과 검증 → `.env` 백업 → 태그 고정 → backend·web pull 후 재생성 → `/health` commit 확인 순서입니다. 실패하면 이미지를 이전 태그로 되돌리고, DB는 자동 복구하지 않습니다. |
+| 1 | 운영 Multica (`~/.multica/server`) | upstream 최신 **릴리스**가 현재 `MULTICA_IMAGE_TAG`보다 새것이고 ghcr 이미지가 올라와 있으면 진행합니다. `pg_dump` 백업과 검증 → `.env` 백업 → 태그 고정 → backend·web pull 후 재생성 → `/health` commit 확인 순서입니다. 성공하면 현재·직전 버전 이미지만 남깁니다. 실패하면 이미지를 이전 태그로 되돌리고, DB는 자동 복구하지 않습니다. |
 | 2 | 포크 `main` | upstream `main`으로 fast-forward합니다. 갈라졌으면 실패로 보고합니다. |
 | 3 | `lightsoft/dev` | 운영이 쓰는 릴리스 태그를 `--no-ff` merge하고 push합니다. 충돌이 나면 abort하고 실패로 보고합니다. |
 | 4 | 팀 클라이언트 | `lightsoft/dev` HEAD가 마지막 빌드와 다르거나 컨테이너가 멈춰 있으면 `docker compose -f lightsoft/docker-compose.team-web.yml up -d --build`를 실행합니다. |

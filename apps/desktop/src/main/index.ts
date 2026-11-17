@@ -80,6 +80,11 @@ import {
   parseAuthSessionUserId,
 } from "../shared/auth-session";
 import {
+  LIGHTICA_APP_ID,
+  LIGHTICA_APP_NAME,
+  LIGHTICA_PROTOCOL,
+} from "../shared/lightica";
+import {
   MAIN_RENDERER_CHANNEL_STATE_CHANNEL,
   MainRendererMessageQueue,
   NEW_WINDOW_SHORTCUT_CHANNEL,
@@ -158,7 +163,7 @@ if (process.platform !== "win32") {
 // Before anything can log: release builds write to stdout/stderr too.
 ignoreBrokenStdio();
 
-const PROTOCOL = "multica";
+const PROTOCOL = LIGHTICA_PROTOCOL;
 const devLog = is.dev ? createBestEffortDevLog() : undefined;
 
 // Where the main process parks a freeze/crash breadcrumb until the next
@@ -722,7 +727,7 @@ if (is.dev) {
   // to "Multica", but anchoring it here makes WM_CLASS ↔ StartupWMClass
   // (declared in electron-builder.yml) survive a regression in
   // productName / the build pipeline. Must run before requestSingleInstanceLock().
-  app.setName("Multica");
+  app.setName(LIGHTICA_APP_NAME);
 }
 
 // --- Protocol registration -----------------------------------------------
@@ -799,7 +804,7 @@ if (!gotTheLock) {
     });
 
     electronApp.setAppUserModelId(
-      is.dev ? "ai.multica.desktop.dev" : "ai.multica.desktop",
+      is.dev ? "ai.multica.desktop.dev" : LIGHTICA_APP_ID,
     );
 
     // macOS: replace the default Electron dock icon with the bundled logo

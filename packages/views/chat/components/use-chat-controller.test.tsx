@@ -197,6 +197,10 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 import { useChatController } from "./use-chat-controller";
 import { api, ApiError } from "@multica/core/api";
 import { chatKeys } from "@multica/core/chat/queries";
+import {
+  chatModelSelectionKeys,
+  useChatModelSelectionDraftStore,
+} from "@multica/core/chat/model-selection";
 
 // --- Fixtures ---------------------------------------------------------------
 function makeSession(
@@ -1338,5 +1342,92 @@ describe("useChatController revoked invoke permission", () => {
     expect(sent).toBe(false);
     expect(vi.mocked(api.sendChatMessage)).not.toHaveBeenCalled();
     expect(h.createSessionMutate).not.toHaveBeenCalled();
+  });
+});
+
+// Lightsoft (LIGH-104): a composer model / effort draft rides on the next send
+// and becomes the session's recorded selection once the server accepts it.
+describe("useChatController.handleSend — chat model selection", () => {
+  const opus = { model: "claude-opus-4-1", thinking_level: "high" };
+
+  beforeEach(() => {
+    useChatModelSelectionDraftStore.setState({ drafts: {} });
+    h.queryClient.setQueryData.mockClear();
+    h.createSessionMutate.mockClear();
+    h.createSessionMutate.mockResolvedValue({ id: "new-session" });
+    vi.mocked(api.sendChatMessage).mockReset();
+    vi.mocked(api.sendChatMessage).mockResolvedValue({
+      message_id: "msg-1",
+      task_id: "task-1",
+      created_at: new Date(0).toISOString(),
+    } as unknown as Awaited<ReturnType<typeof api.sendChatMessage>>);
+    h.store.selectedAgentId = "agent-a";
+    h.sessions = [sA];
+    h.agents = [agentA];
+  });
+
+  async function sendFrom(activeSessionId: string | null) {
+    h.store.activeSessionId = activeSessionId;
+    const { result } = renderHook(() => useChatController());
+    let sent = false;
+    await act(async () => {
+      sent = await result.current.handleSend("hello", undefined, vi.fn());
+    });
+    return sent;
+  }
+
+  it("sends the session's draft and records it once accepted", async () => {
+    useChatModelSelectionDraftStore.getState().setDraft("sA", opus);
+
+    await sendFrom("sA");
+
+    expect(api.sendChatMessage).toHaveBeenCalledWith("sA", "hello", undefined, opus);
+    expect(h.queryClient.setQueryData).toHaveBeenCalledWith(
+      chatModelSelectionKeys.session("ws-1", "sA"),
+      opus,
+    );
+    expect(useChatModelSelectionDraftStore.getState().drafts).toEqual({});
+  });
+
+  it("carries a new chat's per-agent draft into the session it creates", async () => {
+    useChatModelSelectionDraftStore.getState().setDraft("new:agent-a", opus);
+
+    await sendFrom(null);
+
+    expect(api.sendChatMessage).toHaveBeenCalledWith("new-session", "hello", undefined, opus);
+    expect(h.queryClient.setQueryData).toHaveBeenCalledWith(
+      chatModelSelectionKeys.session("ws-1", "new-session"),
+      opus,
+    );
+    expect(useChatModelSelectionDraftStore.getState().drafts).toEqual({});
+  });
+
+  it("records a reset to the agent's defaults as no selection", async () => {
+    useChatModelSelectionDraftStore.getState().setDraft("sA", { model: "", thinking_level: "" });
+
+    await sendFrom("sA");
+
+    expect(h.queryClient.setQueryData).toHaveBeenCalledWith(
+      chatModelSelectionKeys.session("ws-1", "sA"),
+      null,
+    );
+  });
+
+  it("omits the field without a draft so the run follows the session", async () => {
+    await sendFrom("sA");
+
+    expect(api.sendChatMessage).toHaveBeenCalledWith("sA", "hello", undefined, undefined);
+    expect(h.queryClient.setQueryData).not.toHaveBeenCalledWith(
+      chatModelSelectionKeys.session("ws-1", "sA"),
+      expect.anything(),
+    );
+  });
+
+  it("keeps the draft when the send fails", async () => {
+    useChatModelSelectionDraftStore.getState().setDraft("sA", opus);
+    vi.mocked(api.sendChatMessage).mockRejectedValue(new Error("send failed"));
+
+    expect(await sendFrom("sA")).toBe(false);
+    expect(useChatModelSelectionDraftStore.getState().drafts).toEqual({ sA: opus });
   });
 });

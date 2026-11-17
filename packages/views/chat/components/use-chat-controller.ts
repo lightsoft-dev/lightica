@@ -37,6 +37,12 @@ import { useChatStore } from "@multica/core/chat";
 import { upsertChatMessageToCaches } from "@multica/core/chat/message-cache";
 import { refetchChatSessionsAfterCommit } from "@multica/core/chat/session-list";
 import {
+  chatModelSelectionDraftKey,
+  chatModelSelectionKeys,
+  isDefaultChatModelSelection,
+  useChatModelSelectionDraftStore,
+} from "@multica/core/chat/model-selection";
+import {
   enqueuePendingChatTask,
   hideQueuedChatMessages,
 } from "@multica/core/chat/pending";
@@ -549,9 +555,14 @@ export function useChatController(opts?: { isActive?: boolean }) {
       // draft is never cleared, before the roundtrip settles — a slow send never
       // reads as "posted but the box is still full", and a rejected one keeps
       // the draft for retry (ChatInput never cleared it).
+      // Lightsoft (LIGH-104): a composer model / effort draft rides on this send.
+      const modelSelectionDraftKey = chatModelSelectionDraftKey(activeSessionId, activeAgent.id);
+      const modelSelection =
+        useChatModelSelectionDraftStore.getState().drafts[modelSelectionDraftKey];
+
       let result;
       try {
-        result = await api.sendChatMessage(sessionId, finalContent, attachmentIds);
+        result = await api.sendChatMessage(sessionId, finalContent, attachmentIds, modelSelection);
       } catch (err) {
         apiLogger.error("sendChatMessage.error", { sessionId, err });
         // Invoke permission can be revoked mid-session; the send is refused with
@@ -575,6 +586,13 @@ export function useChatController(opts?: { isActive?: boolean }) {
         messageId: result.message_id,
         taskId: result.task_id,
       });
+      if (modelSelection) {
+        qc.setQueryData(
+          chatModelSelectionKeys.session(wsId, sessionId),
+          isDefaultChatModelSelection(modelSelection) ? null : modelSelection,
+        );
+        useChatModelSelectionDraftStore.getState().clearDraft(modelSelectionDraftKey);
+      }
 
       // Render the accepted message from the server response. Prime the message
       // caches BEFORE publishing the session so the first useQuery read after

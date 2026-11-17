@@ -1,0 +1,24 @@
+# Lightsoft team web client — the fork's web app (this branch) served next to
+# the production self-hosted Multica on the Mac Studio, sharing its API and DB.
+#
+#   docker compose -f lightsoft/docker-compose.team-web.yml up -d --build
+#
+# Separate compose project on purpose: it never joins or touches the production
+# stack (compose project "multica"). The API is reached through the host port
+# the production backend publishes (127.0.0.1:8080). See lightsoft/README.md.
+name: multica-team-web
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_APP_VERSION: ${TEAM_WEB_VERSION:-lightsoft-dev}
+    image: multica-custom-web:lightsoft-dev
+    ports:
+      - "127.0.0.1:13000:3000"
+    environment:
+      HOSTNAME: "0.0.0.0"
+      REMOTE_API_URL: http://host.docker.internal:8080
+    restart: unless-stopped

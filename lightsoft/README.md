@@ -1,0 +1,51 @@
+# Lightsoft 팀 웹 클라이언트
+
+이 브랜치(`lightsoft/dev`)는 upstream `multica-ai/multica` main을 기준으로 팀 전용 기능을 넣는 작업 브랜치입니다.
+웹 클라이언트만 따로 띄우고, **API와 DB는 Mac Studio에서 도는 운영 Multica를 그대로 씁니다.**
+
+| | 주소 | 내용 |
+|---|---|---|
+| 운영 (원본) | https://mac-studio.taile83671.ts.net:3443 | self-host Multica (compose 프로젝트 `multica`) |
+| **팀 클라이언트** | https://mac-studio.taile83671.ts.net:3444 | 이 브랜치로 빌드한 웹 (compose 프로젝트 `multica-team-web`) |
+
+쿠키가 같은 호스트에 저장되므로, 운영(:3443)에 로그인했다면 팀 클라이언트(:3444)에서도 로그인된 상태입니다.
+
+## 구성
+
+```
+브라우저 ──https──▶ tailscale serve :3444
+                    ├─ /                            → 127.0.0.1:13000  (multica-team-web-web-1, 이 브랜치의 Dockerfile.web 빌드)
+                    └─ /api /ws /v1 /health         → 127.0.0.1:8080   (운영 backend, v0.9.0)
+```
+
+- 컨테이너 안에서 서버 측 API 요청은 `REMOTE_API_URL=http://host.docker.internal:8080`으로 보냅니다. 운영 compose 네트워크에는 붙지 않습니다.
+- 운영 backend는 WebSocket Origin을 `~/.multica/server/.env`의 `CORS_ALLOWED_ORIGINS`로 검사합니다. 여기에 `https://mac-studio.taile83671.ts.net:3444`, `http://localhost:13000`, `http://localhost:13100`을 추가했습니다(LIGH-99).
+
+## 변경 사항 배포 (팀 클라이언트 갱신)
+
+```bash
+cd ~/lightsoft-projects/multica-custom      # lightsoft/dev 브랜치
+git pull
+TEAM_WEB_VERSION="lightsoft-dev-$(git rev-parse --short HEAD)" \
+  docker compose -f lightsoft/docker-compose.team-web.yml up -d --build
+```
+
+- 멈추기: `docker compose -f lightsoft/docker-compose.team-web.yml down`
+- 로그 보기: `docker logs -f multica-team-web-web-1`
+- Tailscale 노출 해제: `tailscale serve --https=3444 off`
+
+## 로컬 개발 (hot reload)
+
+```bash
+make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
+```
+
+- 이 설정은 로컬 전용 `.env`(git 제외)에 들어 있습니다: `REMOTE_API_URL=http://127.0.0.1:8080`, `FRONTEND_PORT=13100`.
+- `pnpm dev:web`만 실행하면 3000번으로 떠서 운영 웹과 겹칩니다. 반드시 `make web-dev`로 실행하세요.
+
+## ⚠️ 주의
+
+- **버전 차이**: 운영 backend는 v0.9.0이고, 이 브랜치는 upstream main(v0.10.0 이후)입니다. v0.9.0 이후에 추가된 API를 쓰는 화면은 운영 backend를 올리기 전까지 404가 날 수 있습니다. 예: 인박스 snooze, 채팅 wakeup, 런타임 rate limit, 프로젝트 보관.
+- **포크 backend를 운영 DB에 붙이지 않습니다.** 마이그레이션과 백그라운드 작업이 겹칩니다. 새 API나 DB가 필요한 기능은 운영 backend를 교체하는 일이므로 따로 계획합니다.
+- 레포의 `docker-compose.yml`도 이름이 `multica`라서 운영 stack과 겹칩니다. `make dev`, `make setup*`, `make db-*`를 기본값으로 실행하지 마세요. 로컬 `.env`와 `docker-compose.override.yml`이 격리된 `multica-custom` 프로젝트(Postgres 5434)로 우회시키는 안전장치입니다.
+- `localhost:8080`은 IPv6로 다른 프로세스가 잡고 있습니다. 운영 API는 항상 `127.0.0.1:8080`으로 지정하세요.

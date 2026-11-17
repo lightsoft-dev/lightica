@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Installed as ~/Library/LaunchAgents/dev.lightsoft.multica-terminal.plist by
+     lightsoft/terminal/install.sh (__HOME__ and __DAEMON_ID__ are replaced).
+     See lightsoft/terminal/README.md. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.lightsoft.multica-terminal</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/.multica/terminal/bin/lightsoft-terminal</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>LIGHTSOFT_TERM_ADDR</key>
+    <string>127.0.0.1:13200</string>
+    <key>LIGHTSOFT_TERM_API_URL</key>
+    <string>http://127.0.0.1:8080</string>
+    <key>LIGHTSOFT_TERM_DAEMON_ID</key>
+    <string>__DAEMON_ID__</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>__HOME__</string>
+  <key>StandardOutPath</key>
+  <string>__HOME__/.multica/terminal/logs/gateway.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.multica/terminal/logs/gateway.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>

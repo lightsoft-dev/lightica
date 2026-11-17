@@ -54,7 +54,6 @@ FAILURES=()
 log()     { printf '%s %s\n' "$(date '+%F %T')" "$*" >&2; }  # stderr: keeps $(...) captures clean
 changed() { log "CHANGED: $*"; CHANGES+=("$*"); }
 failed()  { log "FAILED: $*"; FAILURES+=("$*"); }
-run()     { if [ "$DRY_RUN" = 1 ]; then log "dry-run: $*"; else "$@"; fi; }
 
 if ! mkdir "$STATE_DIR/lock" 2>/dev/null; then
   log "another run holds $STATE_DIR/lock — exiting"
@@ -163,7 +162,9 @@ mirror_fork_main() {
     log "fork main: up to date"; cd "$OPS_HOME"; return
   fi
   if git merge-base --is-ancestor origin/main upstream/main; then
-    if run git push -q origin upstream/main:refs/heads/main; then
+    if [ "$DRY_RUN" = 1 ]; then
+      log "dry-run: would fast-forward fork main to $(git rev-parse --short upstream/main)"
+    elif git push -q origin upstream/main:refs/heads/main; then
       changed "포크 main → upstream main $(git rev-parse --short upstream/main) (fast-forward)"
     else
       failed "fork main: push failed"

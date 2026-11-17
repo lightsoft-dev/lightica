@@ -30,6 +30,7 @@ import { setLoggedInCookie } from "@/features/auth/auth-cookie";
 import Link from "next/link";
 import { LoginPage, validateCliCallback } from "@multica/views/auth";
 import { useT } from "@multica/views/i18n";
+import { DESKTOP_PROTOCOL } from "@/features/lightsoft/desktop-protocol";
 
 /**
  * Pick where a logged-in user with no explicit `?next=` should land.
@@ -105,7 +106,7 @@ function LoginPageContent() {
         .issueCliToken()
         .then(({ token }) => {
           setDesktopToken(token);
-          window.location.href = `multica://auth/callback?token=${encodeURIComponent(token)}`;
+          window.location.href = `${DESKTOP_PROTOCOL}://auth/callback?token=${encodeURIComponent(token)}`;
         })
         .catch((err) => {
           setDesktopError(
@@ -205,7 +206,7 @@ function LoginPageContent() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  window.location.href = `multica://auth/callback?token=${encodeURIComponent(desktopToken)}`;
+                  window.location.href = `${DESKTOP_PROTOCOL}://auth/callback?token=${encodeURIComponent(desktopToken)}`;
                 }}
               >
                 {t(($) => $.web.desktop_handoff.open_button)}

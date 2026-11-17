@@ -7,6 +7,7 @@ import {
   type NavigationAdapter,
 } from "@multica/views/navigation";
 import { canGoBackInApp } from "./in-app-history";
+import { DESKTOP_PROTOCOL } from "@/features/lightsoft/desktop-protocol";
 
 /**
  * Web half of the `multica:navigate` bridge — the event shared content
@@ -88,7 +89,7 @@ function NavigationProviderInner({
       typeof window === "undefined" ? path : window.location.origin + path,
     openInDesktop: (path: string) => {
       const url = window.location.origin + path;
-      window.location.href = `multica://open/issue?url=${encodeURIComponent(url)}`;
+      window.location.href = `${DESKTOP_PROTOCOL}://open/issue?url=${encodeURIComponent(url)}`;
     },
     // router.prefetch is a no-op in dev mode by Next.js design; in production
     // it warms the RSC payload + route chunk so the next push() commits with

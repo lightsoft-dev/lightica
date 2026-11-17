@@ -34,6 +34,13 @@ describe("deriveProfileName", () => {
   it("falls back to a fixed name on an unparseable URL", () => {
     expect(deriveProfileName("not a url")).toBe("desktop");
   });
+
+  it("uses the given prefix for Lightica's packaged profile", () => {
+    expect(
+      deriveProfileName("https://mac-studio.taile83671.ts.net:3444", "lightica"),
+    ).toBe("lightica-mac-studio.taile83671.ts.net-3444");
+    expect(deriveProfileName("not a url", "lightica")).toBe("lightica");
+  });
 });
 
 describe("profile paths", () => {

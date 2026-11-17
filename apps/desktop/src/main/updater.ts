@@ -11,6 +11,7 @@ import {
   updaterPreferencesPath,
 } from "./updater-preferences";
 import type { DaemonInstallPrep } from "./update-install-gate";
+import { LIGHTICA_AUTO_UPDATE, LIGHTICA_UPDATES_DISABLED_MESSAGE } from "../shared/lightica";
 
 // Silent background updates: electron-updater downloads on its own as soon
 // as `update-available` fires; we only surface UI when the package is fully
@@ -126,6 +127,10 @@ function sendToLiveRenderer(
 // callers onto the same in-flight promise.
 let inFlightCheck: Promise<unknown> | null = null;
 function checkForUpdatesOnce(): Promise<unknown> {
+  // Lightica has no update feed: upstream releases must never replace it.
+  if (!LIGHTICA_AUTO_UPDATE) {
+    return Promise.reject(new Error(LIGHTICA_UPDATES_DISABLED_MESSAGE));
+  }
   if (inFlightCheck) return inFlightCheck;
   const p = autoUpdater
     .checkForUpdates()
@@ -187,6 +192,8 @@ export function setupAutoUpdater(
   // Arm the startup + periodic background checks. Idempotent: an already-armed
   // timer is left in place so re-enabling never stacks duplicate schedules.
   const scheduleBackgroundChecks = (): void => {
+    // Lightica: nothing to poll (see checkForUpdatesOnce).
+    if (!LIGHTICA_AUTO_UPDATE) return;
     if (startupTimer === null && !startupCheckElapsed) {
       // Initial check shortly after startup so we don't block boot.
       startupTimer = setTimeout(() => {

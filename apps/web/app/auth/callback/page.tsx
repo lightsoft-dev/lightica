@@ -21,6 +21,7 @@ import { useT } from "@multica/views/i18n";
 import { Loader2 } from "@multica/ui/icons";
 import { CliCallbackError } from "@/features/auth/cli-callback-error";
 import { callbackErrorFrom, type CallbackError } from "./callback-error";
+import { DESKTOP_PROTOCOL } from "@/features/lightsoft/desktop-protocol";
 
 const authLogger = createLogger("auth.callback");
 
@@ -102,7 +103,7 @@ function CallbackContent() {
         .googleLogin(code, redirectUri)
         .then(({ token }) => {
           setDesktopToken(token);
-          window.location.href = `multica://auth/callback?token=${encodeURIComponent(token)}`;
+          window.location.href = `${DESKTOP_PROTOCOL}://auth/callback?token=${encodeURIComponent(token)}`;
         })
         .catch((err) => {
           authLogger.error("Desktop Google OAuth callback failed", err);
@@ -204,7 +205,7 @@ function CallbackContent() {
             <Button
               variant="outline"
               onClick={() => {
-                window.location.href = `multica://auth/callback?token=${encodeURIComponent(desktopToken)}`;
+                window.location.href = `${DESKTOP_PROTOCOL}://auth/callback?token=${encodeURIComponent(desktopToken)}`;
               }}
             >
               {t(($) => $.web.desktop_handoff.open_button)}

@@ -1,5 +1,8 @@
-appId: ai.multica.desktop
-productName: Multica
+# Lightica (Lightsoft internal build, LIGH-110): identity differs from the
+# official app so both install side by side. Keep in sync with
+# src/shared/lightica.ts and package.json productName.
+appId: dev.lightsoft.lightica
+productName: Lightica
 directories:
   buildResources: build
 files:
@@ -30,9 +33,9 @@ extraResources:
   - from: ../../NOTICE
     to: NOTICE
 protocols:
-  - name: Multica
+  - name: Lightica
     schemes:
-      - multica
+      - lightica
 asarUnpack:
   - resources/**
 # Publishes `minimumSystemVersion` (Darwin kernel floor) into latest-mac.yml /
@@ -40,12 +43,14 @@ asarUnpack:
 # launch. See scripts/mac-update-floor.cjs for why this can't be plain config.
 beforePack: ./scripts/mac-update-floor.cjs
 mac:
+  # Lightica icon (lightsoft/desktop/make-icons.sh); upstream's build/icon.* stay as-is.
+  icon: build/lightica/icon.icns
   # Electron 44 requires macOS 13 Ventura; declare it on every mac bundle.
   minimumSystemVersion: "13.0.0"
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     # Shown in the macOS prompt the first time voice input opens the mic.
-    NSMicrophoneUsageDescription: Multica uses the microphone for voice input when you dictate into chat or comments.
+    NSMicrophoneUsageDescription: Lightica uses the microphone for voice input when you dictate into chat or comments.
   target:
     - dmg
     - zip
@@ -53,14 +58,14 @@ mac:
   # `${name}` produces for scoped package names.
   # Naming scheme: multica-desktop-<version>-<platform>-<arch>.<ext>
   # so the filename alone surfaces kind, version, platform, and CPU arch.
-  artifactName: multica-desktop-${version}-mac-${arch}.${ext}
+  artifactName: lightica-${version}-mac-${arch}.${ext}
   # Notarize via notarytool. Requires APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD
   # + APPLE_TEAM_ID env vars at package time. Non-mac contributors are
   # unaffected because `pnpm package` already requires the Developer ID
   # signing cert — notarization is a strict superset.
   notarize: true
 dmg:
-  artifactName: multica-desktop-${version}-mac-${arch}.${ext}
+  artifactName: lightica-${version}-mac-${arch}.${ext}
 linux:
   # Override the Linux executable name to avoid leaking the scoped npm
   # package name (`@multica/desktop`) into the installed binary, the
@@ -130,9 +135,11 @@ win:
   target:
     - nsis
   artifactName: multica-desktop-${version}-windows-${arch}.${ext}
+# Lightica never checks a feed (src/shared/lightica.ts); the fork is named here
+# only so nothing generated at package time can point at upstream releases.
 publish:
   provider: github
-  owner: multica-ai
+  owner: lightsoft-dev
   repo: multica
   # Align with our CLI release flow which pre-creates a *published* GitHub
   # Release via `gh release create`. The electron-builder default of

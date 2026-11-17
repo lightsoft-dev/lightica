@@ -22,7 +22,19 @@ const ctx = vi.hoisted(() => ({
   appHandlers: new Map<string, Handler[]>(),
   appQuit: vi.fn(),
   userDataPath: "",
+  // Upstream's suite exercises the feed; the Lightica block turns it off.
+  lighticaAutoUpdate: true,
 }));
+
+vi.mock("../shared/lightica", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../shared/lightica")>();
+  return {
+    ...actual,
+    get LIGHTICA_AUTO_UPDATE() {
+      return ctx.lighticaAutoUpdate;
+    },
+  };
+});
 
 vi.mock("electron-updater", () => {
   const autoUpdater = {
@@ -289,6 +301,47 @@ describe("setupAutoUpdater", () => {
     expect(() => emitUpdater("download-progress", { percent: 42 })).toThrow(
       "boom",
     );
+  });
+});
+
+describe("Lightica update feed", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx.lighticaAutoUpdate = false;
+    ctx.userDataPath = mkdtempSync(join(tmpdir(), "lightica-updater-test-"));
+    ctx.handlers.clear();
+    ctx.ipcHandlers.clear();
+    ctx.ipcHandle.mockImplementation((channel: string, handler: IpcHandler) => {
+      ctx.ipcHandlers.set(channel, handler);
+    });
+    ctx.checkForUpdates.mockClear();
+  });
+
+  afterEach(() => {
+    ctx.lighticaAutoUpdate = true;
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    rmSync(ctx.userDataPath, { recursive: true, force: true });
+  });
+
+  it("never polls the feed in the background", async () => {
+    setupAutoUpdater(() => []);
+    await invokeIpc("updater:get-preferences");
+    await invokeIpc("updater:set-automatic-updates", true);
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 5_000);
+
+    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it("answers a manual check with the manual-install notice", async () => {
+    setupAutoUpdater(() => []);
+
+    await expect(invokeIpc("updater:check")).resolves.toEqual({
+      ok: false,
+      error: expect.stringContaining("Lightica"),
+    });
+    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
   });
 });
 

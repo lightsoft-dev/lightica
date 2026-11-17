@@ -17,11 +17,13 @@
 브라우저 ──https──▶ tailscale serve :3444
                     ├─ /                            → 127.0.0.1:13000  (multica-team-web-web-1, 이 브랜치의 Dockerfile.web 빌드)
                     ├─ /api /ws /v1 /health         → 127.0.0.1:8080   (운영 backend, 고정 릴리스 태그)
-                    └─ /lightsoft-term              → 127.0.0.1:13200  (프로젝트 터미널 게이트웨이, launchd)
+                    ├─ /lightsoft-term              → 127.0.0.1:13200  (프로젝트 터미널 게이트웨이, launchd)
+                    └─ /lightsoft-secrets           → 127.0.0.1:13300  (시크릿 매니저, launchd)
 ```
 
 - 프로젝트 터미널(owner/admin 전용)은 `lightsoft/terminal/README.md`에 설치·규칙이 있습니다. 팀 클라이언트 이미지와 별개로 `bash lightsoft/terminal/install.sh`로 갱신합니다.
 - 팀 데스크톱 앱 **Lightica**(팀 클라이언트 서버에 붙는 서명·공증된 macOS 앱)의 빌드·배포는 `lightsoft/desktop/README.md`에 있습니다.
+- 시크릿 매니저(팀 → 시크릿)는 `lightsoft/secrets/README.md`에 설치·규칙·에이전트 사용법이 있습니다. 서비스는 `bash lightsoft/secrets/install.sh`로 갱신하고, 화면은 팀 클라이언트 이미지에 들어 있습니다. 마스터 키(`~/.multica/secrets/master.key`)는 DB와 따로 오프라인에 보관합니다.
 
 - 컨테이너 안에서 서버 측 API 요청은 `REMOTE_API_URL=http://host.docker.internal:8080`으로 보냅니다. 운영 compose 네트워크에는 붙지 않습니다.
 - 운영 backend는 WebSocket Origin을 `~/.multica/server/.env`의 `CORS_ALLOWED_ORIGINS`로 검사합니다. 여기에 `https://mac-studio.taile83671.ts.net:3444`, `http://localhost:13000`, `http://localhost:13100`을 추가했습니다(LIGH-99).

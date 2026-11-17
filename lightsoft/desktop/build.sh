@@ -5,9 +5,10 @@
 #   lightsoft/desktop/build.sh            # Apple silicon (arm64)
 #   lightsoft/desktop/build.sh --x64      # Intel
 #
-# Signing uses the keychain's "Developer ID Application" certificate (pin one
-# with CSC_NAME="Developer ID Application: <name> (<TEAMID>)" if several
-# exist). Notarization credentials come from the environment, first match wins:
+# Signs as "Developer ID Application: Lightsoft", kept in its own keychain by
+# lightsoft/desktop/signing.sh (CSC_NAME="<name> (<TEAMID>)" picks another
+# Developer ID). Notarization credentials come from the environment, first
+# match wins:
 #   APPLE_KEYCHAIN_PROFILE  notarytool keychain profile (default: lightica-notary)
 #   APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER   App Store Connect API key
 #   APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD                Apple ID
@@ -30,14 +31,16 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------- signing ----
 step "signing identity"
-identity="${CSC_NAME:-}"
-if [ -n "$identity" ]; then
-  identity="Developer ID Application: ${identity#Developer ID Application: }"
-else
-  identity="$(security find-identity -v -p codesigning \
-    | sed -nE 's/.*"(Developer ID Application: [^"]+)".*/\1/p' | head -1)"
+if [ -f "${LIGHTSOFT_SIGNING_KEYCHAIN:-$HOME/Library/Keychains/lightsoft-signing.keychain-db}" ]; then
+  bash "$root/lightsoft/desktop/signing.sh" unlock
 fi
-[ -n "$identity" ] || die "no 'Developer ID Application' certificate in the keychain"
+signer="${CSC_NAME:-Lightsoft}"
+signer="${signer#Developer ID Application: }"
+identity="$(security find-identity -v -p codesigning \
+  | sed -nE 's/.*"(Developer ID Application: [^"]+)".*/\1/p' \
+  | grep -F "Developer ID Application: $signer" | head -1 || true)"
+[ -n "$identity" ] \
+  || die "no valid 'Developer ID Application: $signer' identity (lightsoft/desktop/signing.sh, README)"
 team_id="$(printf '%s' "$identity" | sed -nE 's/.*\(([A-Z0-9]{10})\)$/\1/p')"
 [ -n "$team_id" ] || die "could not read the team ID from '$identity'"
 export CSC_NAME="${identity#Developer ID Application: }"

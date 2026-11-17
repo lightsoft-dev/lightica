@@ -7,7 +7,7 @@ import { cn } from "@multica/ui/lib/utils";
 import { agentListOptions, memberListOptions, squadListOptions } from "@multica/core/workspace/queries";
 import { resolvePublicFileUrl } from "@multica/core/workspace/avatar-url";
 import type { Agent } from "@multica/core/types";
-import type { PrincipalType } from "./api";
+import type { PrincipalType } from "@multica/core/lightsoft/secrets";
 
 export interface Principal {
   type: PrincipalType;

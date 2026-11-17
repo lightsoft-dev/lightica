@@ -7,7 +7,7 @@ import type { Agent } from "@multica/core/types";
 vi.mock("@multica/core/api", () => ({ api: { getBaseUrl: () => "" } }));
 
 import { canEnrollAgent } from "./agents-tab";
-import type { SecretMeta } from "./api";
+import type { SecretMeta } from "@multica/core/lightsoft/secrets";
 import type { Principal, PrincipalDirectory } from "./principals";
 import { SecretsTab } from "./secrets-tab";
 

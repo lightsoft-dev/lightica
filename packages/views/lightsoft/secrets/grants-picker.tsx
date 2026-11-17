@@ -1,9 +1,10 @@
 "use client";
+/* eslint-disable i18next/no-literal-string -- Lightsoft fork page (LIGH-112): the team UI is Korean-only, so copy is inline rather than in the upstream locale files that daily release merges touch. */
 
 import { useId, useState } from "react";
 import { Checkbox } from "@multica/ui/components/ui/checkbox";
 import { Input } from "@multica/ui/components/ui/input";
-import type { Grant, PrincipalType } from "./api";
+import type { Grant, PrincipalType } from "@multica/core/lightsoft/secrets";
 import { PrincipalLabel, type Principal, type PrincipalDirectory } from "./principals";
 
 const GROUPS: Array<{ type: PrincipalType; label: string; key: "members" | "agents" | "squads" }> = [

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable i18next/no-literal-string, no-restricted-syntax -- Lightsoft fork page (LIGH-112): the team UI is Korean-only, so copy is inline rather than in the upstream locale files that daily release merges touch. */
 
 import { useId, useState } from "react";
 import { Button } from "@multica/ui/components/ui/button";
@@ -16,9 +17,9 @@ import { Input } from "@multica/ui/components/ui/input";
 import { Label } from "@multica/ui/components/ui/label";
 import { Textarea } from "@multica/ui/components/ui/textarea";
 import { Eye, EyeOff } from "@multica/ui/icons";
-import { SECRET_NAME_PATTERN, errorMessage, type Grant, type SecretMeta } from "./api";
+import { SECRET_NAME_PATTERN, errorMessage, type Grant, type SecretMeta } from "@multica/core/lightsoft/secrets";
 import { GrantsPicker, grantKey } from "./grants-picker";
-import { useCreateSecret, useEditSecret } from "./mutations";
+import { useCreateSecret, useEditSecret } from "@multica/core/lightsoft/secrets";
 import type { PrincipalDirectory } from "./principals";
 
 function sameGrants(a: Grant[], b: Grant[]): boolean {

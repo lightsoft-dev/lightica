@@ -1,14 +1,15 @@
 "use client";
+/* eslint-disable i18next/no-literal-string -- Lightsoft fork page (LIGH-112): the team UI is Korean-only, so copy is inline rather than in the upstream locale files that daily release merges touch. */
 
 import { useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { memberListOptions } from "@multica/core/workspace/queries";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@multica/ui/components/ui/tabs";
 import { KeyRound } from "@multica/ui/icons";
-import { CollectionPageHeader } from "@multica/views/layout";
+import { CollectionPageHeader } from "../../layout";
+import { useNavigation } from "../../navigation";
 import { AgentsTab } from "./agents-tab";
 import { AuditTab, DEFAULT_AUDIT_VIEW, type AuditView } from "./audit-tab";
 import { usePrincipalDirectory } from "./principals";
@@ -26,9 +27,7 @@ const TAB_TRIGGER_CLASS = "h-full rounded-none px-2.5 group-data-horizontal/tabs
 /** Team secrets: stored values, who may read them, and every agent's access history. */
 export function SecretsPage() {
   const wsId = useWorkspaceId();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { pathname, searchParams, replace } = useNavigation();
   const tab = parseTab(searchParams.get("tab"));
   const [auditView, setAuditView] = useState<AuditView>(DEFAULT_AUDIT_VIEW);
 
@@ -42,7 +41,7 @@ export function SecretsPage() {
     if (next === "secrets") params.delete("tab");
     else params.set("tab", next);
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    replace(query ? `${pathname}?${query}` : pathname);
   };
 
   return (

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable i18next/no-literal-string -- Lightsoft fork page (LIGH-112): the team UI is Korean-only, so copy is inline rather than in the upstream locale files that daily release merges touch. */
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,9 +30,9 @@ import {
   secretsApi,
   secretsKeys,
   type SecretMeta,
-} from "./api";
+} from "@multica/core/lightsoft/secrets";
 import { formatAbsolute, formatRelative } from "./format";
-import { useDeleteSecret } from "./mutations";
+import { useDeleteSecret } from "@multica/core/lightsoft/secrets";
 import { PrincipalLabel, type PrincipalDirectory } from "./principals";
 import { CreateSecretDialog, EditSecretDialog } from "./secret-form-dialog";
 

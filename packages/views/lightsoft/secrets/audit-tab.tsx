@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable i18next/no-literal-string -- Lightsoft fork page (LIGH-112): the team UI is Korean-only, so copy is inline rather than in the upstream locale files that daily release merges touch. */
 
 import { useMemo } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -27,7 +28,7 @@ import {
   secretsKeys,
   type AuditEvent,
   type AuditFilter,
-} from "./api";
+} from "@multica/core/lightsoft/secrets";
 import { ACTION_LABELS, actionLabel, formatAbsolute, formatRelative, resultLabel } from "./format";
 import { PrincipalLabel, type PrincipalDirectory } from "./principals";
 

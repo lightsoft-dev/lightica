@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable i18next/no-literal-string -- Lightsoft fork page (LIGH-112): the team UI is Korean-only, so copy is inline rather than in the upstream locale files that daily release merges touch. */
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,9 +24,9 @@ import {
   TableRow,
 } from "@multica/ui/components/ui/table";
 import type { Agent } from "@multica/core/types";
-import { enrollmentListOptions, errorMessage, type Enrollment } from "./api";
+import { enrollmentListOptions, errorMessage, type Enrollment } from "@multica/core/lightsoft/secrets";
 import { formatAbsolute, formatRelative } from "./format";
-import { useEnrollAgent, useUnenrollAgent } from "./mutations";
+import { useEnrollAgent, useUnenrollAgent } from "@multica/core/lightsoft/secrets";
 import { PrincipalLabel, type PrincipalDirectory } from "./principals";
 
 const MANAGER_ROLES = new Set(["owner", "admin"]);

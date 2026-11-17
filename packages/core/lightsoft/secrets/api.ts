@@ -1,14 +1,36 @@
 import { queryOptions } from "@tanstack/react-query";
 import { z } from "zod";
-import { parseWithFallback } from "@multica/core/api/schema";
+import { api } from "../../api";
+import { parseWithFallback } from "../../api/schema";
 
-// Served by the Lightsoft secrets service (lightsoft/secrets), which Tailscale
-// serve mounts on the team client origin. Local web dev points this at the
-// service's own port instead.
-export const SECRETS_BASE =
-  process.env.NEXT_PUBLIC_LIGHTSOFT_SECRETS_URL ?? "/lightsoft-secrets";
+// The Lightsoft secrets service (lightsoft/secrets) is mounted by Tailscale
+// serve under this path on the team client origin, which is also the API
+// origin Lightica (desktop) talks to.
+const SERVICE_PATH = "/lightsoft-secrets";
 
-/** Sent on every state-changing request; the service rejects writes without it. */
+let serviceUrlOverride: string | null = null;
+
+/**
+ * Platform override for the service URL. Web calls it at boot because its API
+ * base is same-origin (and local web dev runs the service on its own port);
+ * Desktop leaves it unset and derives the URL from its API base.
+ */
+export function configureSecretsService(opts: { baseUrl: string }) {
+  serviceUrlOverride = opts.baseUrl.replace(/\/+$/, "");
+}
+
+export function secretsServiceUrl(): string {
+  if (serviceUrlOverride !== null) return serviceUrlOverride;
+  const base = typeof api.getBaseUrl === "function" ? api.getBaseUrl() : "";
+  return `${(base ?? "").replace(/\/+$/, "")}${SERVICE_PATH}`;
+}
+
+/** Desktop holds its session as a bearer token; web (cookie mode) has none. */
+function sessionToken(): string | null {
+  return typeof api.getToken === "function" ? api.getToken() : null;
+}
+
+/** Sent on every state-changing request; the service rejects cookie writes without it. */
 export const CSRF_HEADER = "X-Lightsoft-Secrets";
 
 export const SECRET_NAME_PATTERN = /^[A-Z][A-Z0-9_]{0,127}$/;
@@ -159,7 +181,7 @@ export class SecretsApiError extends Error {
 }
 
 function wsPath(wsId: string, path: string): string {
-  return `${SECRETS_BASE}/api/w/${encodeURIComponent(wsId)}${path}`;
+  return `${secretsServiceUrl()}/api/w/${encodeURIComponent(wsId)}${path}`;
 }
 
 async function request(
@@ -170,6 +192,8 @@ async function request(
   const headers: Record<string, string> = { Accept: "application/json" };
   if (method !== "GET") headers[CSRF_HEADER] = "1";
   if (body !== undefined) headers["Content-Type"] = "application/json";
+  const token = sessionToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   let res: Response;
   try {

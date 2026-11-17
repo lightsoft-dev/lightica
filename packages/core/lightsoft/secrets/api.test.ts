@@ -2,6 +2,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSRF_HEADER, SecretsApiError, secretsApi } from "./api";
 
+// Web runs the API client in cookie mode with a same-origin base; Lightica
+// (desktop) runs it with the team client origin and a bearer session token.
+const apiState = vi.hoisted(() => ({ baseUrl: "", token: null as string | null }));
+vi.mock("../../api", () => ({
+  api: { getBaseUrl: () => apiState.baseUrl, getToken: () => apiState.token },
+}));
+
 const WS = "11111111-1111-1111-1111-111111111111";
 
 function mockFetch(status: number, body: unknown) {
@@ -14,6 +21,8 @@ function mockFetch(status: number, body: unknown) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  apiState.baseUrl = "";
+  apiState.token = null;
 });
 
 describe("secretsApi", () => {
@@ -66,5 +75,42 @@ describe("secretsApi", () => {
   it("keeps a malformed list renderable", async () => {
     mockFetch(200, { secrets: "nope" });
     await expect(secretsApi.list(WS)).resolves.toEqual({ viewer: null, secrets: [] });
+  });
+
+  it("sends no bearer token in cookie mode (web)", async () => {
+    const fetchMock = mockFetch(200, { viewer: null, secrets: [] });
+
+    await secretsApi.list(WS);
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init.headers.Authorization).toBeUndefined();
+  });
+
+  it("calls the team client origin with the session token in Lightica", async () => {
+    apiState.baseUrl = "https://mac-studio.taile83671.ts.net:3444/";
+    apiState.token = "eyJhbGciOiJIUzI1NiJ9.e30.sig";
+    const fetchMock = mockFetch(200, { value: "s3cret" });
+
+    await secretsApi.reveal(WS, "sec-1");
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(
+      `https://mac-studio.taile83671.ts.net:3444/lightsoft-secrets/api/w/${WS}/secrets/sec-1/reveal`,
+    );
+    expect(init.headers.Authorization).toBe("Bearer eyJhbGciOiJIUzI1NiJ9.e30.sig");
+  });
+
+  it("prefers the platform override for the service URL", async () => {
+    vi.resetModules();
+    const mod = await import("./api");
+    apiState.baseUrl = "https://ignored.example";
+    mod.configureSecretsService({ baseUrl: "http://localhost:13301/lightsoft-secrets/" });
+    const fetchMock = mockFetch(200, { viewer: null, secrets: [] });
+
+    await mod.secretsApi.list(WS);
+
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      `http://localhost:13301/lightsoft-secrets/api/w/${WS}/secrets`,
+    );
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { useRegisterCommandBarContext } from "../../search/register-context";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { Archive, ArchiveRestore, BellOff, BellRing, Check, ChevronRight, FileQuestion, Link2, PanelRight, Pencil, Pin, PinOff, Trash2 } from "@multica/ui/icons";
@@ -122,7 +122,14 @@ function ProjectWorkflowPropRow({ project, onOpen }: { project: Project; onOpen:
 
 // ProjectDetail
 
-export function ProjectDetail({ projectId }: { projectId: string }) {
+export function ProjectDetail({
+  projectId,
+  menuExtra,
+}: {
+  projectId: string;
+  /** Platform-specific entries appended to the project's header menu. */
+  menuExtra?: ReactNode;
+}) {
   const { t } = useT("projects");
   const statusLabels = useProjectStatusLabels();
   const priorityLabels = useProjectPriorityLabels();
@@ -578,6 +585,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                       {isSubscribed ? t(($) => $.detail.unsubscribe_action) : t(($) => $.detail.subscribe_action)}
                     </DropdownMenuItem>
                     <ProjectWorkflowMenuItem project={project} onOpen={() => setWorkflowSheetOpen(true)} />
+                    {menuExtra}
                     <DropdownMenuSeparator />
                     {archived ? (
                       <DropdownMenuItem onClick={() => restore(project)}>

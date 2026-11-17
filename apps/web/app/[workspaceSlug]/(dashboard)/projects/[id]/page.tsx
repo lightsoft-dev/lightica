@@ -3,6 +3,7 @@
 import { Suspense, use } from "react";
 import { ProjectDetail } from "@multica/views/projects/components";
 import { useIssueViewUrlSync } from "../../../../../platform/use-issue-view-url-sync";
+import { TerminalMenuItem } from "../../../../../features/lightsoft/terminal-menu-item";
 
 function IssueViewUrlSync({ projectId }: { projectId: string }) {
   // useSearchParams requires a Suspense boundary in the app router.
@@ -21,7 +22,7 @@ export default function ProjectDetailPage({
       <Suspense fallback={null}>
         <IssueViewUrlSync projectId={id} />
       </Suspense>
-      <ProjectDetail projectId={id} />
+      <ProjectDetail projectId={id} menuExtra={<TerminalMenuItem projectId={id} />} />
     </>
   );
 }

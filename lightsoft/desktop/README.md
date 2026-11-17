@@ -1,6 +1,6 @@
 # Lightica (팀 데스크톱 앱)
 
-Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 클라이언트(:3444)와 같은 서버에 붙고, 팀 전용 기능이 들어 있으며, 사내 Developer ID로 서명·공증합니다. 공식 Multica 앱과 한 맥에 같이 설치해도 서로 겹치지 않습니다.
+Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 클라이언트(:3444)와 같은 서버에 붙고, 팀 전용 기능이 들어 있으며, **Lightsoft** Developer ID로 서명·공증합니다. 공식 Multica 앱과 한 맥에 같이 설치해도 서로 겹치지 않습니다.
 
 | | 공식 Multica | Lightica |
 |---|---|---|
@@ -19,7 +19,12 @@ Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 
 ## 처음 한 번: 빌드 준비 (빌드하는 맥)
 
 - Xcode Command Line Tools, Node 22 이상, pnpm, Go(`server/go.mod` toolchain)가 필요합니다.
-- 키체인에 **Developer ID Application** 인증서가 있어야 합니다. 확인: `security find-identity -v -p codesigning`. 여러 개면 `CSC_NAME="Developer ID Application: <이름> (<TEAMID>)"`로 고릅니다.
+- **Lightsoft 서명 인증서**(Developer ID Application: Lightsoft)가 서명용 키체인에 있어야 합니다. 확인: `lightsoft/desktop/signing.sh status`. 다른 Developer ID로 서명하려면 `CSC_NAME="<이름> (<TEAMID>)"`를 줍니다.
+
+  처음 만들거나 갱신할 때(인증서 유효기간 5년):
+  1. `lightsoft/desktop/signing.sh csr`: 이 맥에서 개인키와 CSR(`~/.lightsoft/signing/Lightsoft-DeveloperID.certSigningRequest`)을 만듭니다. 개인키는 이 맥 밖으로 나가지 않습니다.
+  2. **Account Holder**가 developer.apple.com에서 인증서를 발급합니다. Developer ID 인증서는 Account Holder만 만들 수 있고, App Store Connect API 키로는 403이 납니다. 순서: Certificates, IDs & Profiles → Certificates → **+** → **Developer ID Application** → Profile Type **G2 Sub-CA** → 위 CSR 업로드 → Download(`developerID_application.cer`).
+  3. `lightsoft/desktop/signing.sh install ~/Downloads/developerID_application.cer`: 받은 인증서와 개인키를 전용 키체인(`~/Library/Keychains/lightsoft-signing.keychain-db`)에 넣습니다. 키체인 비밀번호는 무작위로 만들어 로그인 키체인에 저장하므로, 빌드 중에 codesign 허용 창이 뜨지 않습니다. 암호화된 백업(`~/.lightsoft/signing/developer-id-application.p12`, 비밀번호도 로그인 키체인)을 남기고 평문 개인키는 지웁니다.
 - 공증 자격증명을 키체인 프로필 `lightica-notary`로 한 번 저장합니다. 값은 셸 기록에 남지 않게 입력합니다.
 
   ```bash
@@ -39,7 +44,7 @@ lightsoft/desktop/build.sh --x64      # Intel 맥용
 
 결과물은 `apps/desktop/dist/lightica-<버전>-mac-<arch>.dmg`입니다. 15~30분쯤 걸리고, 대부분 Apple 공증 대기 시간입니다. 스크립트가 하는 일:
 
-1. 키체인의 Developer ID 인증서를 찾고, 인증서의 팀 ID를 `APPLE_TEAM_ID`로 씁니다. `scripts/package.mjs`는 이 값이 없으면 공증을 건너뜁니다.
+1. 서명용 키체인을 열고 `Developer ID Application: Lightsoft` 인증서를 찾습니다. 인증서의 팀 ID는 `APPLE_TEAM_ID`로 씁니다. `scripts/package.mjs`는 이 값이 없으면 공증을 건너뜁니다.
 2. 공증 자격증명으로 `notarytool`에 로그인되는지 먼저 확인합니다.
 3. upstream 릴리스 태그를 가져와 버전을 정합니다. `git describe` 기준이라 `0.10.0-8-gc0b61dd82`처럼 나옵니다.
 4. `pnpm package -- --mac dmg`: 번들 CLI와 음성 엔진을 포함해 빌드하고, `.app`을 서명·공증·staple합니다.

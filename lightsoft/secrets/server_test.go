@@ -438,10 +438,13 @@ func TestBrowserGuards(t *testing.T) {
 	if badOrigin.status != http.StatusForbidden {
 		t.Fatalf("foreign origin: %d", badOrigin.status)
 	}
-	// An agent's task token must not pass as a person, as cookie or bearer.
+	// Machine credentials (agent task token, PAT) must not pass as a person,
+	// as cookie or bearer.
 	for _, mod := range []func(*http.Request){
 		func(req *http.Request) { req.AddCookie(&http.Cookie{Name: authCookieName, Value: "mat_taskA"}) },
-		func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+session(alice)) },
+		func(req *http.Request) { req.Header.Set("Authorization", "Bearer mat_taskA") },
+		func(req *http.Request) { req.Header.Set("Authorization", "Bearer mul_personal") },
+		func(req *http.Request) { req.Header.Set("Authorization", session(alice)) },
 	} {
 		if r := h.request(http.MethodGet, ws("/secrets"), nil, mod); r.status != http.StatusUnauthorized {
 			t.Fatalf("machine credential as person: %d", r.status)
@@ -449,6 +452,41 @@ func TestBrowserGuards(t *testing.T) {
 	}
 	if r := h.browser(erin, http.MethodGet, ws("/secrets"), nil); r.status != http.StatusForbidden {
 		t.Fatalf("non-member: %d", r.status)
+	}
+}
+
+// Lightica (desktop) holds the login session as a bearer token and runs from
+// a file:// page, so it sends no cookie and no allowed Origin. A deliberate
+// bearer credential needs no CSRF guard.
+func TestLighticaBearerSession(t *testing.T) {
+	h := newHarness(t)
+	bearer := func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+session(alice)) }
+
+	created := h.request(http.MethodPost, ws("/secrets"), map[string]any{"name": "DESKTOP_KEY", "value": "from-lightica"}, bearer)
+	if created.status != http.StatusCreated {
+		t.Fatalf("create with bearer: %d %s", created.status, created.body)
+	}
+	var m secretMeta
+	created.json(t, &m)
+	if m.OwnerID != alice {
+		t.Fatalf("owner = %q", m.OwnerID)
+	}
+	revealed := h.request(http.MethodPost, ws("/secrets/"+m.ID+"/reveal"), nil, bearer)
+	var out struct{ Value string }
+	revealed.json(t, &out)
+	if revealed.status != 200 || out.Value != "from-lightica" {
+		t.Fatalf("reveal with bearer: %d %s", revealed.status, revealed.body)
+	}
+	if r := h.request(http.MethodPost, ws("/agents/"+agentA+"/enroll"), nil, bearer); r.status != 200 {
+		t.Fatalf("enroll with bearer: %d %s", r.status, r.body)
+	}
+	bobBearer := func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+session(bob)) }
+	if r := h.request(http.MethodPost, ws("/secrets/"+m.ID+"/reveal"), nil, bobBearer); r.status != http.StatusForbidden {
+		t.Fatalf("bob with bearer and no grant: %d", r.status)
+	}
+	events := h.auditEvents(carol, "?secret_id="+m.ID)
+	if len(events) != 3 || events[0].ActorID != bob || events[0].Result != resultDenied {
+		t.Fatalf("bearer actions must be recorded like browser ones: %+v", events)
 	}
 }
 

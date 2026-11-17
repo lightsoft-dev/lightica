@@ -91,7 +91,7 @@ func (s *server) withCORS(next http.Handler) http.Handler {
 			h.Add("Vary", "Origin")
 			if r.Method == http.MethodOptions {
 				h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE")
-				h.Set("Access-Control-Allow-Headers", "Content-Type, "+csrfHeader)
+				h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, "+csrfHeader)
 				h.Set("Access-Control-Max-Age", "600")
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -199,6 +199,21 @@ func isSessionToken(v string) bool {
 	return strings.HasPrefix(v, "eyJ") && strings.Count(v, ".") == 2
 }
 
+// sessionCredential returns a person's login session: the team client's
+// cookie, or the bearer session token Lightica (desktop) holds. Either way it
+// must be a session JWT; machine credentials are refused.
+func sessionCredential(r *http.Request) (token string, fromCookie, ok bool) {
+	if h := r.Header.Get("Authorization"); h != "" {
+		token = strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
+		return token, false, strings.HasPrefix(h, "Bearer ") && isSessionToken(token)
+	}
+	c, err := r.Cookie(authCookieName)
+	if err != nil {
+		return "", true, false
+	}
+	return c.Value, true, isSessionToken(c.Value)
+}
+
 func (s *server) human(fn func(http.ResponseWriter, *http.Request, *viewer)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		wsID := r.PathValue("ws")
@@ -206,29 +221,32 @@ func (s *server) human(fn func(http.ResponseWriter, *http.Request, *viewer)) htt
 			writeError(w, &apiError{http.StatusBadRequest, "워크스페이스 ID가 올바르지 않습니다."})
 			return
 		}
-		if r.Method != http.MethodGet {
+		token, fromCookie, ok := sessionCredential(r)
+		if !ok {
+			writeError(w, &apiError{http.StatusUnauthorized, "Multica에 로그인한 브라우저나 Lightica에서 열어 주세요."})
+			return
+		}
+		// Only the cookie is sent by the browser on its own, so only cookie
+		// writes need the CSRF guard. A bearer token (Lightica) has to be
+		// attached by the caller deliberately.
+		if fromCookie && r.Method != http.MethodGet {
 			if r.Header.Get(csrfHeader) != "1" || !s.cfg.AllowedOrigins[r.Header.Get("Origin")] {
 				writeError(w, &apiError{http.StatusForbidden, "허용되지 않은 요청입니다. 팀 클라이언트에서 다시 시도해 주세요."})
 				return
 			}
 		}
-		c, err := r.Cookie(authCookieName)
-		if err != nil || !isSessionToken(c.Value) {
-			writeError(w, &apiError{http.StatusUnauthorized, "Multica에 로그인한 브라우저에서 열어 주세요."})
-			return
-		}
 		ctx := r.Context()
-		user, err := s.api.me(ctx, c.Value)
+		user, err := s.api.me(ctx, token)
 		if err != nil {
 			writeError(w, apiFailure("me", err))
 			return
 		}
-		members, err := s.api.members(ctx, c.Value, wsID)
+		members, err := s.api.members(ctx, token, wsID)
 		if err != nil {
 			writeError(w, apiFailure("members", err))
 			return
 		}
-		v := &viewer{user: user, token: c.Value, workspaceID: wsID, members: members, squadCache: map[string][]apiSquadMember{}}
+		v := &viewer{user: user, token: token, workspaceID: wsID, members: members, squadCache: map[string][]apiSquadMember{}}
 		for _, m := range members {
 			if m.UserID == user.ID {
 				v.role = m.Role

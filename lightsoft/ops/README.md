@@ -5,12 +5,16 @@
 | 순서 | 대상 | 동작 |
 |---|---|---|
 | 1 | 운영 Multica (`~/.multica/server`) | upstream 최신 **릴리스**가 현재 `MULTICA_IMAGE_TAG`보다 새것이고 ghcr 이미지가 올라와 있으면 진행합니다. `pg_dump` 백업과 검증 → `.env` 백업 → 태그 고정 → backend·web pull 후 재생성 → `/health` commit 확인 순서입니다. 성공하면 현재·직전 버전 이미지만 남깁니다. 실패하면 이미지를 이전 태그로 되돌리고, DB는 자동 복구하지 않습니다. |
-| 2 | 포크 `main` | upstream `main`으로 fast-forward합니다. 갈라졌으면 실패로 보고합니다. |
+| 2 | 포크 `main`·릴리스 태그 | upstream `main`으로 fast-forward합니다. 갈라졌으면 실패로 보고합니다. 이어서 포크에 없는 upstream 릴리스 태그(`v*`)를 push합니다. 포크에 이미 있는 태그는 옮기지 않습니다. |
 | 3 | `lightsoft/dev` | 운영이 쓰는 릴리스 태그를 `--no-ff` merge하고 push합니다. 충돌이 나면 abort하고 실패로 보고합니다. |
 | 4 | 팀 클라이언트 | `lightsoft/dev` HEAD가 마지막 빌드와 다르거나 컨테이너가 멈춰 있으면 `docker compose -f lightsoft/docker-compose.team-web.yml up -d --build`를 실행합니다. |
 | 5 | 리포트 | 변경이 있으면 리포트 이슈(LIGH-101)에 코멘트를 남깁니다. 실패하면 전담 에이전트에게 새 이슈를 할당합니다. 서버가 죽어 있으면 macOS 알림을 띄웁니다. |
 
 운영과 팀 클라이언트는 같은 릴리스를 기준으로 합니다. 그래서 팀 클라이언트가 운영 API보다 앞서 404가 나는 일이 없습니다. upstream `main`의 미출시 기능은 다음 릴리스와 함께 들어옵니다.
+
+`lightsoft/dev`가 merge하는 대상은 포크 `main`이 아니라 릴리스 태그입니다. 포크 `main`은 upstream에 무엇이 들어오는지 보는 참고용 미러입니다. 릴리스 태그를 포크에도 올려 두므로, 포크만 clone한 체크아웃에서도 upstream remote 없이 `git merge vX.Y.Z`로 수동 merge할 수 있습니다.
+
+주의: upstream의 `.github/workflows/release.yml`은 `v*.*.*` 태그 push로 실행되고, 일부 job(Docker 이미지 빌드·ghcr push)은 저장소 소유자를 가리지 않습니다. 지금 포크는 GitHub Actions가 한 번도 실행되지 않은 상태(포크 워크플로 미활성)라 태그를 push해도 아무것도 돌지 않습니다. 포크에서 Actions를 켜게 되면 먼저 `gh workflow disable release.yml --repo lightsoft-dev/multica`로 Release 워크플로를 꺼 두세요.
 
 ## 파일 위치 (Mac Studio)
 

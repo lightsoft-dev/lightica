@@ -9,6 +9,8 @@ import type { ExpoConfig, ConfigContext } from "expo/config";
 const LIGHTICA = {
   name: "Lightica",
   scheme: "lightica",
+  // Debug builds also register expo-dev-client's `exp+<slug>` scheme.
+  slug: "lightica-mobile",
   // One id per variant so Dev, Staging and the release build sit side by side.
   // The desktop app owns dev.lightsoft.lightica; the phone takes the `.mobile`
   // child, as upstream splits ai.multica.desktop and ai.multica.mobile.
@@ -42,7 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       : isStaging
         ? `${LIGHTICA.name} (Staging)`
         : `${LIGHTICA.name} (Dev)`,
-    slug: "multica-mobile",
+    slug: LIGHTICA.slug,
     version: "0.1.0",
     orientation: "portrait",
     userInterfaceStyle: "automatic",

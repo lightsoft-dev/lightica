@@ -7,12 +7,13 @@ Lightica 모바일은 `lightsoft/dev`로 빌드한 Multica iOS 앱(`apps/mobile`
 | 앱 이름 | Multica / Multica (Staging) / Multica (Dev) | Lightica / Lightica (Staging) / Lightica (Dev) |
 | 번들 ID | `ai.multica.mobile[.staging\|.dev]` | `dev.lightsoft.lightica.mobile[.staging\|.dev]` |
 | 딥링크 | `multica://` | `lightica://` |
+| Expo slug (Debug 개발 클라이언트 스킴 `exp+<slug>`) | `multica-mobile` | `lightica-mobile` |
 | 서버 (release 빌드) | `api.multica.ai` | `https://mac-studio.taile83671.ts.net:3444` (팀 클라이언트, Tailscale 필요) |
 | 아이콘 | `apps/mobile/assets/icon.png` | `apps/mobile/assets/lightica/icon.png` |
 | 로그인 화면 | Multica 워드마크, "Sign in to Multica" | Lightica 마크, "Sign in to Lightica" |
 
 - 데스크톱 Lightica의 번들 ID는 `dev.lightsoft.lightica`입니다. 모바일은 upstream이 `ai.multica.desktop`과 `ai.multica.mobile`을 나누듯 `.mobile`을 붙입니다.
-- 빌드 신원(이름·번들 ID·스킴·아이콘·사진 권한 문구)은 `apps/mobile/app.config.ts`의 `LIGHTICA` 상수에 있습니다. Expo 설정 로더가 다른 TS 파일을 읽지 못해서 거기에 둡니다. 앱이 실행 중에 읽는 값(이름, 서버 주소)은 `apps/mobile/lightica.ts`에 있습니다.
+- 빌드 신원(이름·번들 ID·스킴·slug·아이콘·사진 권한 문구)은 `apps/mobile/app.config.ts`의 `LIGHTICA` 상수에 있습니다. Expo 설정 로더가 다른 TS 파일을 읽지 못해서 거기에 둡니다. 앱이 실행 중에 읽는 값(이름, 서버 주소)은 `apps/mobile/lightica.ts`에 있습니다.
 - 서버 주소는 `apps/mobile/.env.production`의 `EXPO_PUBLIC_API_URL`·`EXPO_PUBLIC_WEB_URL`입니다. 빌드할 때 JS 번들에 들어갑니다. `lightica.ts`의 `LIGHTICA_SERVER_URL`과 같아야 하고, `apps/mobile/lightica.test.ts`가 확인합니다.
 - 로그인 화면의 마크는 팀 웹의 `packages/ui/components/common/lightica-icon.tsx`와 같은 도형입니다(`apps/mobile/components/brand/lightica-logo.tsx`). 테스트가 두 경로가 같은지 봅니다.
 - 앱의 나머지 화면과 문구는 upstream 그대로입니다. 다국어 파일(`apps/mobile/locales/`)은 바꾸지 않았고, 로그인 제목만 호출하는 곳에서 바꿉니다. 팀 웹과 같은 방식입니다.
@@ -64,7 +65,7 @@ pnpm ios:mobile:prod --configuration Release      # 같은 빌드를 iOS 시뮬�
 
 merge가 충돌하면 아래 파일에서 Lightica 값을 유지합니다.
 
-- `apps/mobile/app.config.ts`(`LIGHTICA` 상수와 그것을 쓰는 `name`·`scheme`·`icon`·`bundleIdentifier`·`photosPermission`), `apps/mobile/app.config.test.ts`
+- `apps/mobile/app.config.ts`(`LIGHTICA` 상수와 그것을 쓰는 `name`·`slug`·`scheme`·`icon`·`bundleIdentifier`·`photosPermission`), `apps/mobile/app.config.test.ts`
 - `apps/mobile/.env.production`, `apps/mobile/.env.production.example`
 - `apps/mobile/app/(auth)/login.tsx`, `apps/mobile/app/(auth)/verify.tsx`(Lightica 마크와 제목)
 - `apps/mobile/vitest.config.ts`(`lightica.test.ts`)

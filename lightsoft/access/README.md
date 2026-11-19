@@ -57,6 +57,12 @@ tailnet 밖 사용자가 처음 보는 화면은 Cloudflare가 띄우는 Access 
 - **고칠 때**: 이 파일을 고친 뒤 같은 custom page를 갱신합니다(`PUT /accounts/{id}/access/custom_pages/{uid}`). 템플릿에 문제가 있어 렌더링이 안 되면 Access는 기본 화면으로 돌아가고, 정책 판단은 바뀌지 않습니다.
 - 템플릿은 Zero Trust Pay-as-you-go 이상에서만 됩니다. Workers·R2 유료 구독과는 별개입니다. 템플릿 HTML을 대시보드 세션에서 API로 직접 보내면 대시보드 WAF가 XSS로 보고 막습니다(403 "Sorry, you have been blocked"). 대시보드 화면의 편집기나 API 토큰으로 넣습니다. Free 플랜이면 Custom pages → Access login page에서 이름·로고 URL·배경색만 바꿀 수 있고, 이 설정은 모든 Access 앱에 적용됩니다.
 
+## 문제 해결
+
+- **Access를 통과한 뒤 "Cloudflare Tunnel error"(1033)**: DNS 레코드가 다른 터널을 가리키는 경우입니다. `~/.cloudflared/config.yml`에 기본 터널(buildover/staged)이 지정돼 있으면, `--config` 없이 실행한 `cloudflared tunnel route dns`는 인자로 준 터널이 아니라 그 기본 터널로 레코드를 만듭니다. `install.sh`는 이제 Lightica 설정 파일과 터널 UUID로 연결합니다. 이미 잘못된 레코드가 있으면 `LIGHTICA_OVERWRITE_DNS=1`을 붙여 다시 실행합니다. 대시보드 DNS에서 `lightica` CNAME의 대상이 `<lightica 터널 UUID>.cfargotunnel.com`인지 확인할 수 있습니다.
+- **설치 스크립트의 외부 확인으로는 이 경우를 못 잡습니다.** 로그인하지 않은 요청에는 Access가 먼저 응답하므로, 레코드가 엉뚱한 곳을 가리켜도 302가 옵니다. 터널까지 가는 경로 전체를 보려면 임시 서비스 토큰을 만들고, Lightica 앱에 그 토큰만 허용하는 Service Auth(`non_identity`) 정책을 붙인 뒤 `CF-Access-Client-Id`/`CF-Access-Client-Secret` 헤더로 `/health`와 `/login`을 요청합니다. 반영까지 1분쯤 걸립니다. 끝나면 정책과 토큰을 지웁니다. 이때 `POST /api/lightsoft/auth/cloudflare-access`는 403(`cf_access_invalid_assertion`)이 정상입니다. 서비스 토큰에는 이메일이 없어서, backend 로그에는 "has no email"로 남습니다.
+- 터널 처리량: `curl -s 127.0.0.1:20242/metrics | grep cloudflared_tunnel_total_requests`. 사용자가 접속했는데 0이면 요청이 터널까지 오지 않은 것입니다.
+
 ## 끄기
 
 - 터널만 내리기: `launchctl bootout gui/$(id -u)/dev.lightsoft.lightica-tunnel`. 그 주소는 530이 납니다.

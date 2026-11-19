@@ -1,0 +1,38 @@
+# Throwaway stack for checking a fork backend image before it reaches production
+# (LIGH-190). Its own project name, its own Postgres on 127.0.0.1:5434 (no volume),
+# backend on 127.0.0.1:18080. Never attach this backend to the production DB.
+# Driven by lightsoft/backend/verify.sh.
+name: multica-fork-verify
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: multica_verify
+      POSTGRES_USER: multica
+      POSTGRES_PASSWORD: multica
+    ports:
+      - "127.0.0.1:${VERIFY_PG_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U multica -d multica_verify"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    image: ${IMAGE:-localhost/lightsoft/multica-backend}:${TAG:-v0.11.0}
+    pull_policy: never
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${VERIFY_BACKEND_PORT:-18080}:8080"
+    environment:
+      DATABASE_URL: postgres://multica:multica@postgres:5432/multica_verify?sslmode=disable
+      PORT: "8080"
+      JWT_SECRET: fork-verify-only
+      APP_ENV: development
+      MULTICA_DEV_VERIFICATION_CODE: "888888"
+      FRONTEND_ORIGIN: http://localhost:18081
+      MULTICA_APP_URL: http://localhost:18081
+      DO_NOT_TRACK: "1"

@@ -11,7 +11,7 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 here="$root/lightsoft/backend"
 export IMAGE="${IMAGE:-localhost/lightsoft/multica-backend}"
-export TAG="${1:-$(cd "$root" && lightsoft/version.sh release)}"
+export TAG="${1:-$(cd "$root" && lightsoft/version.sh --release)}"
 export VERIFY_PG_PORT="${VERIFY_PG_PORT:-5434}" VERIFY_BACKEND_PORT="${VERIFY_BACKEND_PORT:-18080}"
 compose() { docker compose -f "$here/docker-compose.verify.yml" "$@"; }
 

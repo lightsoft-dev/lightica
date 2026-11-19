@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Installed as ~/Library/LaunchAgents/dev.lightsoft.lightica-feed.plist by
+     lightsoft/desktop/feed/install.sh (__HOME__ is replaced).
+     See lightsoft/desktop/README.md. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.lightsoft.lightica-feed</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/.multica/lightica/bin/lightica-feed</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>LIGHTICA_FEED_ADDR</key>
+    <string>127.0.0.1:13400</string>
+    <key>LIGHTICA_FEED_DIR</key>
+    <string>__HOME__/.multica/lightica/feed</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>__HOME__</string>
+  <key>StandardOutPath</key>
+  <string>__HOME__/.multica/lightica/logs/feed.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.multica/lightica/logs/feed.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>

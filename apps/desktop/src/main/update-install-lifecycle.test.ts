@@ -51,6 +51,7 @@ vi.mock("electron-updater", () => ({
     quitAndInstall: ctx.install,
     checkForUpdates: vi.fn(async () => null),
     downloadUpdate: vi.fn(),
+    setFeedURL: vi.fn(), // Lightica team feed (updater.ts)
     on: (name: string, fn: Handler) => {
       ctx.updaterListeners.set(name, [...(ctx.updaterListeners.get(name) ?? []), fn]);
     },

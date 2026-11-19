@@ -26,11 +26,10 @@ if [ -n "$(git status --porcelain -- server Dockerfile docker LICENSE NOTICE .do
   die "uncommitted changes under server/ or the Dockerfile — the image must match a commit"
 fi
 
-release="$(lightsoft/version.sh release)"
+release="$(lightsoft/version.sh --release)"
 commit="$(git rev-parse HEAD)"
-# shellcheck disable=SC2207
-taken=($(docker images --format '{{.Tag}}' "$IMAGE"))
-version="$(lightsoft/version.sh team ${taken[@]+"${taken[@]}"})"
+# A rebuild on the same day gets .2, .3, ...: the image's tags are the versions already used.
+version="$(docker images --format '{{.Tag}}' "$IMAGE" | lightsoft/version.sh --taken -)"
 
 echo "building $IMAGE:$version ($release, $(git rev-parse --short HEAD))" >&2
 docker build -f Dockerfile \

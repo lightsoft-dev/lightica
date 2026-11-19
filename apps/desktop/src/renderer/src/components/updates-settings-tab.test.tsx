@@ -11,19 +11,8 @@ const mocks = vi.hoisted(() => ({
   unsubscribe: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  // Upstream's suite exercises the feed; the Lightica case turns it off.
-  lighticaAutoUpdate: true,
+  openExternal: vi.fn(),
 }));
-
-vi.mock("../../../shared/lightica", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../shared/lightica")>();
-  return {
-    ...actual,
-    get LIGHTICA_AUTO_UPDATE() {
-      return mocks.lighticaAutoUpdate;
-    },
-  };
-});
 
 const translations = {
   auto_save: { toast_saved: "Settings saved" },
@@ -88,10 +77,11 @@ describe("UpdatesSettingsTab", () => {
     mocks.unsubscribe.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.toastError.mockReset();
+    mocks.openExternal.mockReset().mockResolvedValue(undefined);
 
     Object.defineProperty(window, "desktopAPI", {
       configurable: true,
-      value: { appInfo: { version: "1.2.3" } },
+      value: { appInfo: { version: "1.2.3" }, openExternal: mocks.openExternal },
     });
     Object.defineProperty(window, "updater", {
       configurable: true,
@@ -119,16 +109,31 @@ describe("UpdatesSettingsTab", () => {
     expect(await screen.findByText("Up to date")).toBeInTheDocument();
   });
 
-  it("shows the Lightica manual-install notice instead of a retry hint", async () => {
-    mocks.lighticaAutoUpdate = false;
-    try {
-      mocks.checkForUpdates.mockResolvedValueOnce({ ok: false, reason: "unavailable", error: "ignored" });
-      render(<UpdatesSettingsTab />);
-      fireEvent.click(screen.getByRole("button", { name: "Check now" }));
-      expect(await screen.findByRole("status")).toHaveTextContent("Lightica");
-    } finally {
-      mocks.lighticaAutoUpdate = true;
-    }
+  it("links to the dmg when this app cannot install the update itself", async () => {
+    const downloadUrl = "https://feed.example/lightica-0.11.0-20261120-mac-arm64.dmg";
+    mocks.checkForUpdates.mockResolvedValueOnce({
+      ok: true,
+      available: true,
+      latestVersion: "0.11.0-20261120",
+      downloadState: { status: "manual", version: "0.11.0-20261120", downloadUrl },
+    });
+    render(<UpdatesSettingsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Check now" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("v0.11.0-20261120");
+    expect(screen.getByRole("button", { name: "Check now" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "다운로드" }));
+    expect(mocks.openExternal).toHaveBeenCalledWith(downloadUrl);
+  });
+
+  it("restores a manual update found before the page opened", async () => {
+    mocks.getDownloadState.mockResolvedValue({
+      status: "manual",
+      version: "0.11.0-20261120",
+      downloadUrl: "https://feed.example/x.dmg",
+    });
+    render(<UpdatesSettingsTab />);
+    expect(await screen.findByRole("status")).toHaveTextContent("v0.11.0-20261120");
   });
 
   it("recovers when the check IPC itself rejects", async () => {

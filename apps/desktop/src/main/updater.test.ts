@@ -16,23 +16,24 @@ const ctx = vi.hoisted(() => ({
     updateInfo: { version: "0.3.18" },
     isUpdateAvailable: false,
   })),
-  downloadUpdate: vi.fn(),
+  downloadUpdate: vi.fn(async () => [] as string[]),
+  setFeedURL: vi.fn(),
   quitAndInstall: vi.fn(),
   getVersion: vi.fn(() => "0.3.17"),
   appHandlers: new Map<string, Handler[]>(),
   appQuit: vi.fn(),
   userDataPath: "",
-  // Upstream's suite exercises the feed; the Lightica block turns it off.
-  lighticaAutoUpdate: true,
+  // Upstream's suite runs as a build that can install its own updates; the
+  // Lightica block uses the real signing-team decision.
+  realInstallDecision: false,
 }));
 
-vi.mock("../shared/lightica", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../shared/lightica")>();
+vi.mock("./lightica-update", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lightica-update")>();
   return {
     ...actual,
-    get LIGHTICA_AUTO_UPDATE() {
-      return ctx.lighticaAutoUpdate;
-    },
+    canInstallUpdate: (...args: Parameters<typeof actual.canInstallUpdate>) =>
+      ctx.realInstallDecision ? actual.canInstallUpdate(...args) : true,
   };
 });
 
@@ -56,6 +57,7 @@ vi.mock("electron-updater", () => {
     checkForUpdates: ctx.checkForUpdates,
     downloadUpdate: ctx.downloadUpdate,
     quitAndInstall: ctx.quitAndInstall,
+    setFeedURL: ctx.setFeedURL,
   };
   return { autoUpdater };
 });
@@ -85,6 +87,7 @@ import {
   type UpdaterDaemonGate,
 } from "./updater";
 import { updaterPreferencesPath } from "./updater-preferences";
+import { LIGHTICA_UPDATE_FEED_URL } from "../shared/lightica";
 
 it("disables downgrades after selecting the Windows arm64 channel", async () => {
   vi.stubGlobal("process", { ...process, platform: "win32", arch: "arm64" });
@@ -388,9 +391,26 @@ describe("setupAutoUpdater", () => {
 });
 
 describe("Lightica update feed", () => {
+  const TEAM = "ABCDE12345";
+  const feedInfo = (team?: string) => ({
+    version: "0.11.0-20261120",
+    files: [
+      { url: "lightica-0.11.0-20261120-mac-arm64.zip" },
+      { url: "lightica-0.11.0-20261120-mac-arm64.dmg" },
+    ],
+    ...(team ? { lighticaSigningTeam: team } : {}),
+  });
+
+  function publishOnCheck(info: ReturnType<typeof feedInfo>) {
+    ctx.checkForUpdates.mockImplementationOnce(async () => {
+      emitUpdater("update-available", info);
+      return { updateInfo: info, isUpdateAvailable: true, downloadPromise: null };
+    });
+  }
+
   beforeEach(() => {
     vi.useFakeTimers();
-    ctx.lighticaAutoUpdate = false;
+    ctx.realInstallDecision = true;
     ctx.userDataPath = mkdtempSync(join(tmpdir(), "lightica-updater-test-"));
     ctx.handlers.clear();
     ctx.ipcHandlers.clear();
@@ -398,34 +418,75 @@ describe("Lightica update feed", () => {
       ctx.ipcHandlers.set(channel, handler);
     });
     ctx.checkForUpdates.mockClear();
+    ctx.downloadUpdate.mockClear();
+    ctx.setFeedURL.mockClear();
   });
 
   afterEach(() => {
-    ctx.lighticaAutoUpdate = true;
+    ctx.realInstallDecision = false;
     vi.clearAllTimers();
     vi.useRealTimers();
     rmSync(ctx.userDataPath, { recursive: true, force: true });
   });
 
-  it("never polls the feed in the background", async () => {
-    setupAutoUpdater(() => []);
-    await invokeIpc("updater:get-preferences");
-    await invokeIpc("updater:set-automatic-updates", true);
+  it("reads the team channel and leaves the download decision to the app", () => {
+    setupAutoUpdater(() => [], { readSigningTeam: async () => TEAM });
 
-    await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 5_000);
-
-    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
+    expect(ctx.setFeedURL).toHaveBeenCalledWith({
+      provider: "generic",
+      url: LIGHTICA_UPDATE_FEED_URL,
+    });
+    expect(autoUpdater.autoDownload).toBe(false);
   });
 
-  it("answers a manual check with the manual-install notice", async () => {
-    setupAutoUpdater(() => []);
+  it("downloads an update signed by its own team for the restart prompt", async () => {
+    setupAutoUpdater(() => [], { readSigningTeam: async () => TEAM });
+    publishOnCheck(feedInfo(TEAM));
 
-    await expect(invokeIpc("updater:check")).resolves.toEqual({
-      ok: false,
-      error: expect.stringContaining("Lightica"),
-      reason: "unavailable",
+    await expect(invokeIpc("updater:check")).resolves.toMatchObject({
+      ok: true,
+      downloadState: { status: "downloading", version: "0.11.0-20261120" },
     });
-    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
+    expect(ctx.downloadUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("links to the dmg when its signature cannot accept the update", async () => {
+    for (const [own, published] of [
+      [null, TEAM], // ad-hoc or unsigned app
+      [TEAM, "ZZZZZ99999"], // signed by another team
+      [TEAM, undefined], // feed without a team
+    ] as const) {
+      ctx.ipcHandlers.clear();
+      setupAutoUpdater(() => [], { readSigningTeam: async () => own });
+      publishOnCheck(feedInfo(published));
+
+      await expect(invokeIpc("updater:check")).resolves.toMatchObject({
+        ok: true,
+        downloadState: {
+          status: "manual",
+          version: "0.11.0-20261120",
+          downloadUrl: `${LIGHTICA_UPDATE_FEED_URL}lightica-0.11.0-20261120-mac-arm64.dmg`,
+        },
+      });
+    }
+    expect(ctx.downloadUpdate).not.toHaveBeenCalled();
+  });
+
+  it("decides only once it knows its own signature", async () => {
+    let resolveTeam!: (team: string | null) => void;
+    setupAutoUpdater(() => [], {
+      readSigningTeam: () => new Promise((done) => { resolveTeam = done; }),
+    });
+    publishOnCheck(feedInfo(TEAM));
+
+    await invokeIpc("updater:check");
+    expect(ctx.downloadUpdate).not.toHaveBeenCalled();
+    await expect(invokeIpc("updater:get-download-state")).resolves.toEqual({ status: "idle" });
+
+    resolveTeam(TEAM);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ctx.downloadUpdate).toHaveBeenCalledOnce();
+    await expect(invokeIpc("updater:get-download-state")).resolves.toMatchObject({ status: "downloading" });
   });
 });
 

@@ -18,11 +18,13 @@
                     ├─ /                            → 127.0.0.1:13000  (multica-team-web-web-1, 이 브랜치의 Dockerfile.web 빌드)
                     ├─ /api /ws /v1 /health         → 127.0.0.1:8080   (운영 backend, 이 브랜치로 빌드한 이미지)
                     ├─ /lightsoft-term              → 127.0.0.1:13200  (프로젝트 터미널 게이트웨이, launchd)
-                    └─ /lightsoft-secrets           → 127.0.0.1:13300  (시크릿 매니저, launchd)
+                    ├─ /lightsoft-secrets           → 127.0.0.1:13300  (시크릿 매니저, launchd)
+                    └─ /lightica                    → 127.0.0.1:13400  (Lightica 릴리스 피드, launchd. LIGH-191)
 ```
 
 - 프로젝트 터미널(owner/admin 전용)은 `lightsoft/terminal/README.md`에 설치·규칙이 있습니다. 팀 클라이언트 이미지와 별개로 `bash lightsoft/terminal/install.sh`로 갱신합니다.
-- 팀 데스크톱 앱 **Lightica**(팀 클라이언트 서버에 붙는 서명·공증된 macOS 앱)의 빌드·배포는 `lightsoft/desktop/README.md`에 있습니다.
+- 팀 데스크톱 앱 **Lightica**(팀 클라이언트 서버에 붙는 서명·공증된 macOS 앱)의 빌드·배포는 `lightsoft/desktop/README.md`에 있습니다. 릴리스는 `lightsoft/desktop/release.sh`가 `/lightica/` 피드에 게시하고, 설치된 앱은 그 피드에서 새 버전을 찾습니다.
+- 팀 빌드 버전은 `<upstream 릴리스>-<YYYYMMDD>[.N]`(예: `0.11.0-20261119`)이고 `lightsoft/version.sh` 한 곳에서 계산합니다. Lightica와 번들 CLI가 이 버전을 씁니다.
 - 시크릿 매니저(팀 → 시크릿)는 `lightsoft/secrets/README.md`에 설치·규칙·에이전트 사용법이 있습니다. 서비스는 `bash lightsoft/secrets/install.sh`로 갱신하고, 화면은 팀 클라이언트 이미지에 들어 있습니다. 마스터 키(`~/.multica/secrets/master.key`)는 DB와 따로 오프라인에 보관합니다.
 
 - 컨테이너 안에서 서버 측 API 요청은 `REMOTE_API_URL=http://host.docker.internal:8080`으로 보냅니다. 운영 compose 네트워크에는 붙지 않습니다.

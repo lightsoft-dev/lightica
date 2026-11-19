@@ -136,16 +136,20 @@ win:
   target:
     - nsis
   artifactName: multica-desktop-${version}-windows-${arch}.${ext}
-# Lightica never checks a feed (src/shared/lightica.ts); the fork is named here
-# only so nothing generated at package time can point at upstream releases.
+# Lightica reads the team release channel (LIGH-191), never upstream releases.
+# lightsoft/desktop/release.sh publishes the dmg, zip and latest-mac.yml there;
+# nothing is uploaded at package time. Must match LIGHTICA_UPDATE_FEED_URL in
+# src/shared/lightica.ts.
 publish:
-  provider: github
-  owner: lightsoft-dev
-  repo: multica
-  # Align with our CLI release flow which pre-creates a *published* GitHub
-  # Release via `gh release create`. The electron-builder default of
-  # `releaseType: draft` conflicts with `existingType=release` and causes
-  # uploads of the DMG/ZIP/blockmaps/latest-mac.yml to be silently skipped,
-  # which breaks electron-updater auto-update on installed clients.
-  releaseType: release
+  provider: generic
+  url: https://mac-studio.taile83671.ts.net:3444/lightica/
+# Lightica versions are <release>-<YYYYMMDD>[.N]. Left on, electron-builder
+# reads the date as a prerelease channel and writes 20261119-mac.yml (and
+# `channel: 20261119` into the app), so every build would get its own feed.
+detectUpdateChannel: false
+extraMetadata:
+  # electron-updater caches downloads in <name>-updater; upstream's
+  # "@multica/desktop" is the official app's cache, and each app clears
+  # the other's pending update there. productName still names the app.
+  name: lightica
 npmRebuild: false

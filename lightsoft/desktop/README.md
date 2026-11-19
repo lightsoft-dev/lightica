@@ -22,7 +22,7 @@ Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 
 - Xcode Command Line Tools, Node 22 이상, pnpm, Go(`server/go.mod` toolchain)가 필요합니다.
 - **Lightsoft 서명 인증서**(Developer ID Application: Lightsoft)가 서명용 키체인에 있어야 합니다. 확인: `lightsoft/desktop/signing.sh status`. 다른 Developer ID로 서명하려면 `CSC_NAME="<이름> (<TEAMID>)"`를 줍니다.
 
-  처음 만들거나 갱신할 때(인증서 유효기간 5년):
+  처음 만들거나 갱신할 때. 지금 인증서(팀 `H66C2M66DC`)는 **2027-12-19**까지 유효하니, 그 전에 같은 순서로 다시 발급합니다. 이미 서명·공증한 빌드는 만료 뒤에도 열립니다(서명에 타임스탬프가 있습니다). 팀 ID가 같으면 앱 안 자동 설치도 그대로 이어집니다.
   1. `lightsoft/desktop/signing.sh csr`: 이 맥에서 개인키와 CSR(`~/.lightsoft/signing/Lightsoft-DeveloperID.certSigningRequest`)을 만듭니다. 개인키는 이 맥 밖으로 나가지 않습니다.
   2. **Account Holder**가 developer.apple.com에서 인증서를 발급합니다. Developer ID 인증서는 Account Holder만 만들 수 있고, App Store Connect API 키로는 403이 납니다. 순서: Certificates, IDs & Profiles → Certificates → **+** → **Developer ID Application** → Profile Type **G2 Sub-CA** → 위 CSR 업로드 → Download(`developerID_application.cer`).
   3. `lightsoft/desktop/signing.sh install ~/Downloads/developerID_application.cer`: 받은 인증서와 개인키를 전용 키체인(`~/Library/Keychains/lightsoft-signing.keychain-db`)에 넣습니다. 키체인 비밀번호는 무작위로 만들어 로그인 키체인에 저장하므로, 빌드 중에 codesign 허용 창이 뜨지 않습니다. 암호화된 백업(`~/.lightsoft/signing/developer-id-application.p12`, 비밀번호도 로그인 키체인)을 남기고 평문 개인키는 지웁니다.

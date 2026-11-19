@@ -11,9 +11,10 @@ Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 
 | 데몬 설정 | `~/.multica/desktop_prefs.json` | `~/.lightica/desktop_prefs.json` |
 | 데몬 프로필 | `~/.multica/profiles/desktop-<host>/` | `~/.multica/profiles/lightica-<host>/` |
 | 앱 데이터 | `~/Library/Application Support/Multica` | `~/Library/Application Support/Lightica` |
-| 자동 업데이트 | multica-ai 릴리스 | **없음**. 새 dmg를 받아 다시 설치합니다. |
+| 업데이트 피드 | multica-ai GitHub 릴리스 | 팀 릴리스 피드 `https://mac-studio.taile83671.ts.net:3444/lightica/` (Tailscale 필요) |
+| 버전 | `0.11.0` | `0.11.0-20261119` (upstream 릴리스-날짜[.N]) |
 
-신원 값은 `apps/desktop/src/shared/lightica.ts`, `apps/desktop/electron-builder.yml`, `apps/desktop/package.json`(`productName`)에 있습니다. 바꿀 때는 세 곳을 같이 바꿉니다.
+신원 값은 `apps/desktop/src/shared/lightica.ts`, `apps/desktop/electron-builder.yml`, `apps/desktop/package.json`(`productName`)에 있습니다. 바꿀 때는 세 곳을 같이 바꿉니다. 피드 주소는 `lightica.ts`의 `LIGHTICA_UPDATE_FEED_URL`과 `electron-builder.yml`의 `publish.url`이 같아야 합니다(테스트가 확인합니다). 이미 설치된 앱은 빌드에 들어간 주소만 보므로, 주소를 바꾸면 옛 앱은 새 버전을 찾지 못합니다.
 팀 웹(`apps/web/features/lightsoft/desktop-protocol.ts`)은 데스크톱 로그인과 "데스크톱에서 열기"를 `lightica://`로 넘깁니다. 그래서 운영 웹(:3443)은 공식 앱으로, 팀 웹(:3444)은 Lightica로 연결됩니다.
 
 ## 처음 한 번: 빌드 준비 (빌드하는 맥)
@@ -42,14 +43,26 @@ lightsoft/desktop/build.sh            # Apple silicon
 lightsoft/desktop/build.sh --x64      # Intel 맥용
 ```
 
-결과물은 `apps/desktop/dist/lightica-<버전>-mac-<arch>.dmg`입니다. 15~30분쯤 걸리고, 대부분 Apple 공증 대기 시간입니다. 스크립트가 하는 일:
+팀에 나눠 줄 빌드는 아래 [릴리스](#릴리스-팀-배포)의 `release.sh`로 만듭니다. `build.sh`만 실행하면 빌드와 검사만 하고 게시하지 않습니다.
+
+결과물은 `apps/desktop/dist/lightica-<버전>-mac-<arch>.dmg`와 같은 이름의 `.zip`(앱 안 업데이트용), `latest-mac.yml`입니다. 15~30분쯤 걸리고, 대부분 Apple 공증 대기 시간입니다. 스크립트가 하는 일:
 
 1. 서명용 키체인을 열고 `Developer ID Application: Lightsoft` 인증서를 찾습니다. 인증서의 팀 ID는 `APPLE_TEAM_ID`로 씁니다. `scripts/package.mjs`는 이 값이 없으면 공증을 건너뜁니다.
 2. 공증 자격증명으로 `notarytool`에 로그인되는지 먼저 확인합니다.
-3. upstream 릴리스 태그를 가져와 버전을 정합니다. `git describe` 기준이라 `0.10.0-8-gc0b61dd82`처럼 나옵니다.
-4. `pnpm package -- --mac dmg`: 번들 CLI와 음성 엔진을 포함해 빌드하고, `.app`을 서명·공증·staple합니다.
+3. 버전을 정합니다: `lightsoft/version.sh`가 `<upstream 릴리스>-<YYYYMMDD>`(서울 날짜)를 만들고, 릴리스 피드에 이미 있는 버전이면 `.2`, `.3`을 붙입니다. `DESKTOP_BUILD_VERSION`을 주면 그 값을 씁니다.
+4. `pnpm package -- --mac dmg zip`: 번들 CLI와 음성 엔진을 포함해 빌드하고, `.app`을 서명·공증·staple합니다. 앱과 번들 CLI 모두 3의 버전을 받습니다(`scripts/package.mjs`의 `DESKTOP_BUILD_VERSION`).
 5. dmg도 서명·공증·staple합니다. electron-builder는 `.app`만 공증합니다.
-6. Gatekeeper 기준으로 검사합니다: `codesign --verify --deep --strict`, `spctl --assess`(app은 execute, dmg는 open), `stapler validate`.
+6. Gatekeeper 기준으로 검사합니다: `codesign --verify --deep --strict`, `spctl --assess`(app은 execute, dmg는 open), `stapler validate`. 앱 버전(`CFBundleShortVersionString`)과 번들 CLI의 `multica version`이 3의 버전과 같은지도 봅니다.
+
+### 버전 체계
+
+- 형식: `<upstream 릴리스>-<YYYYMMDD>[.N]`. 예: `0.11.0-20261119`, 같은 날 두 번째 빌드는 `0.11.0-20261119.2`. 날짜는 Asia/Seoul입니다.
+- 계산은 `lightsoft/version.sh` 한 곳에서 합니다. 이미 쓴 버전 목록을 `--taken`으로 받습니다. 포크 backend 이미지(LIGH-190)도 같은 스크립트를 씁니다: `docker image ls --format '{{.Tag}}' <이미지> | lightsoft/version.sh --taken -`.
+- semver로는 prerelease라서 `0.11.0-20261119`은 `0.11.0`보다 낮습니다. 피드에는 날짜 버전만 올리므로 상관없습니다. 날짜와 N은 숫자로 비교되어 `.10`이 `.9`보다 높습니다.
+- 데몬은 번들 CLI 버전을 런타임 버전으로 보고합니다. 설정 → 런타임(또는 `multica runtime list`)에서 누가 어느 빌드를 쓰는지 보입니다.
+  - 서버의 CLI 최소 버전 검사는 앞의 `X.Y.Z`만 봅니다. 그래서 `0.11.0-20261119`은 `0.11.0`으로 검사됩니다. 예전 `git describe` 버전은 검사를 건너뛰었지만, 이제는 upstream 같은 버전의 데몬과 똑같이 검사됩니다.
+  - CLI 자체 업데이트(`multica update`, 데몬 자동 업데이트, 런타임 화면의 업데이트)는 `X.Y.Z` 꼴만 릴리스로 봅니다. 그래서 번들 CLI가 upstream 릴리스로 바뀌지 않습니다.
+- `electron-builder.yml`의 `detectUpdateChannel: false`는 꼭 둡니다. 없으면 electron-builder가 날짜를 prerelease 채널로 읽어 `20261119-mac.yml`을 만들고 앱에도 그 채널을 넣어서, 빌드마다 피드가 따로 생깁니다.
 
 ## 설치와 첫 실행
 
@@ -61,23 +74,78 @@ lightsoft/desktop/build.sh --x64      # Intel 맥용
    { "schemaVersion": 1, "apiUrl": "https://mac-studio.taile83671.ts.net:3444" }
    ```
 
-팀원에게 dmg를 나눠 줄 위치(GitHub Release, 사내 드라이브 등)는 아직 정하지 않았습니다. 외부에 올리기 전에 확인을 받습니다.
+## 릴리스 (팀 배포)
+
+포크 레포는 public이라 GitHub Release에 올리면 외부에 공개됩니다. 그래서 Lightica는 **Mac Studio의 릴리스 피드**로 나눠 줍니다.
+
+```
+설치된 Lightica / 브라우저 ──https──▶ tailscale serve :3444 /lightica
+                                      → 127.0.0.1:13400 lightica-feed (launchd)
+                                      → ~/.multica/lightica/feed/
+                                         latest-mac.yml, lightica-<버전>-mac-arm64.{dmg,zip}[.blockmap],
+                                         releases.json, index.html
+```
+
+- `https://mac-studio.taile83671.ts.net:3444/lightica/`가 릴리스 페이지입니다. 지금 버전의 dmg, SHA-256, 기록이 있습니다. Tailscale 밖에서는 열리지 않습니다(serve만, funnel 아님).
+- 피드 파일은 버전이 이름에 들어 있어 바뀌지 않습니다. `latest-mac.yml`, `releases.json`, `index.html`만 `no-cache`로 내보냅니다.
+- Tailscale macOS 앱(Standalone)은 샌드박스라서 `tailscale serve`로 폴더를 바로 내보내지 못합니다. 그래서 작은 정적 서버(`lightsoft/desktop/feed/`)를 둡니다.
+
+### 처음 한 번: 피드 열기 (Mac Studio)
+
+```bash
+bash lightsoft/desktop/feed/install.sh      # 빌드 → ~/.multica/lightica/bin, launchd 등록, health 확인
+tailscale serve --bg --https=3444 --set-path=/lightica http://127.0.0.1:13400/lightica
+curl -fsS https://mac-studio.taile83671.ts.net:3444/lightica/health
+```
+
+- 노출만 끄기: `tailscale serve --https=3444 --set-path=/lightica off`
+- 서버 멈추기: `launchctl bootout gui/$(id -u)/dev.lightsoft.lightica-feed`
+- 로그: `~/.multica/lightica/logs/feed.log`
+
+### 게시
+
+```bash
+cd <lightsoft/dev 체크아웃> && git pull       # 커밋되지 않은 변경이 있으면 멈춥니다
+lightsoft/desktop/release.sh                   # Apple silicon
+DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Intel이 필요할 때
+```
+
+`release.sh`가 하는 일:
+
+1. `build.sh`로 빌드하고 검사합니다(위 "빌드").
+2. dmg, zip, blockmap을 피드 폴더에 복사하고 `releases.json`과 `index.html`을 갱신합니다. 오래된 릴리스는 최근 5개 버전만 파일을 남기고 기록에 "정리됨"으로 표시합니다.
+3. 마지막에 `latest-mac.yml`을 바꿉니다. 이때부터 설치된 앱이 새 버전을 봅니다. `latest-mac.yml`에는 빌드의 서명 팀 ID(`lighticaSigningTeam`)를 덧붙입니다.
+4. 설치 안내 이슈(LIGH-116)의 "현재 배포 파일" 절을 새 버전, 파일, SHA-256으로 바꿉니다. `multica` CLI 로그인이 필요합니다. `--no-issue`로 건너뜁니다.
+
+환경변수: `LIGHTICA_FEED_DIR`(피드 폴더), `LIGHTICA_FEED_URL`, `LIGHTICA_INSTALL_ISSUE`, `DESKTOP_BUILD_VERSION`. 서명·공증 변수는 `build.sh`와 같습니다.
+
+되돌리기: `latest-mac.yml`이 가리키는 버전을 낮추면 설치된 앱은 따라 내려가지 않습니다(downgrade 안 함). 문제가 있는 빌드는 고친 빌드를 새 버전으로 다시 게시합니다.
+
+### 앱 안 업데이트
+
+설치된 Lightica는 설정 → 업데이트의 자동 업데이트가 켜져 있으면(기본값) 시작 5초 뒤와 1시간마다 피드의 `latest-mac.yml`을 확인합니다. 같은 화면의 "지금 확인"으로도 확인합니다. 새 버전이 있으면:
+
+- **자동 설치**: 실행 중인 앱과 새 빌드가 **같은 Developer ID 팀**으로 서명돼 있으면 zip을 받아 두고 "Update ready → Restart now"를 띄웁니다. 앱을 종료할 때도 설치됩니다. Squirrel.Mac은 같은 팀 서명이 아니면 설치를 거부하므로, 앱이 자기 서명(`codesign`)과 `latest-mac.yml`의 `lighticaSigningTeam`을 먼저 비교합니다(`apps/desktop/src/main/lightica-update.ts`).
+- **다운로드 안내**: 그 밖의 경우(ad-hoc 빌드, 다른 팀으로 서명된 빌드)는 "Lightica vX — 다운로드" 알림만 띄웁니다. 다운로드를 누르면 브라우저로 dmg를 엽니다.
+- 업데이트 다운로드 캐시는 `~/Library/Caches/lightica-updater`입니다(`extraMetadata.name: lightica`). 공식 Multica 앱의 캐시와 겹치지 않습니다.
+- 이 기능은 이 버전 체계가 들어간 빌드부터 동작합니다. 그 전 빌드(`0.10.0-…`, `0.11.0-26-g…`)는 업데이트 확인이 막혀 있으니 한 번은 손으로 설치합니다.
+
+### 팀원 업데이트 방법
+
+- 알림의 **Restart now**를 누르거나 앱을 종료했다가 다시 켭니다(자동 설치).
+- "다운로드" 알림이면: dmg를 받아 열고, Lightica를 종료한 뒤 Applications의 Lightica를 덮어씁니다. 로그인과 설정은 그대로 남습니다.
+- 직접 받으려면 릴리스 페이지(`https://mac-studio.taile83671.ts.net:3444/lightica/`)를 엽니다.
 
 ## 일일 업데이트 후 다시 빌드
 
-매일 05:00 자동 작업이 운영과 같은 upstream 릴리스를 `lightsoft/dev`에 merge합니다(`lightsoft/ops/README.md`). Lightica는 스스로 업데이트하지 않습니다. 설정의 "업데이트 확인"을 누르면 수동 설치 안내가 나옵니다. 그래서 새 릴리스가 merge되면 사람이 다시 빌드해서 나눠 줍니다.
+매일 05:00 자동 작업이 운영과 같은 upstream 릴리스를 `lightsoft/dev`에 merge합니다(`lightsoft/ops/README.md`). Lightica는 자동으로 다시 빌드되지 않습니다. 새 릴리스가 merge되면 사람이 `lightsoft/desktop/release.sh`로 게시하고, 팀원의 앱이 그 버전을 알려 줍니다.
 
-```bash
-cd <lightsoft/dev 체크아웃> && git pull
-lightsoft/desktop/build.sh
-# dist/lightica-*.dmg 배포 → 팀원은 앱을 종료하고 Applications의 Lightica를 덮어씁니다.
-```
-
-- 리포트 이슈(LIGH-101)에 "`lightsoft/dev`에 upstream vX.Y.Z merge"가 올라오면 다시 빌드할 때입니다. 운영 backend와 같은 릴리스라서, 빌드하지 않아도 이전 Lightica가 바로 깨지지는 않습니다.
-- merge가 충돌로 실패하면, 아래 파일에서 Lightica 값(이름·ID·스킴·경로·업데이트 차단)을 유지하는 쪽으로 풉니다.
-  - `apps/desktop/electron-builder.yml`, `apps/desktop/package.json`
-  - `apps/desktop/src/main/{index,runtime-config-loader,daemon-manager,daemon-profile,updater}.ts`
-  - `apps/desktop/src/renderer/{index.html,src/App.tsx,src/pages/project-detail-page.tsx}`
+- 리포트 이슈(LIGH-101)에 "`lightsoft/dev`에 upstream vX.Y.Z merge"가 올라오면 다시 게시할 때입니다. 운영 backend와 같은 릴리스라서, 게시하지 않아도 이전 Lightica가 바로 깨지지는 않습니다.
+- merge가 충돌로 실패하면, 아래 파일에서 Lightica 값(이름·ID·스킴·경로·팀 피드와 설치 판단)을 유지하는 쪽으로 풉니다.
+  - `apps/desktop/electron-builder.yml`(`publish`, `detectUpdateChannel`, `extraMetadata`), `apps/desktop/package.json`
+  - `apps/desktop/scripts/package.mjs`(`DESKTOP_BUILD_VERSION`)
+  - `apps/desktop/src/main/{index,runtime-config-loader,daemon-manager,daemon-profile,updater}.ts`, `apps/desktop/src/shared/updater-types.ts`(`manual` 상태)
+  - `apps/desktop/src/renderer/{index.html,src/App.tsx,src/pages/project-detail-page.tsx}`, `apps/desktop/src/renderer/src/components/{update-notification,updates-settings-tab}.tsx`
   - `apps/web/app/(auth)/login/page.tsx`, `apps/web/app/auth/callback/page.tsx`, `apps/web/platform/navigation.tsx`
   - 팀 기능 경로: `apps/desktop/src/renderer/src/routes.tsx`의 `secrets`(시크릿 매니저, `lightsoft/secrets/README.md`)
 

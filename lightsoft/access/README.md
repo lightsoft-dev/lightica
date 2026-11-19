@@ -26,7 +26,7 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
 
 1. **Access 앱을 먼저 만듭니다** (Cloudflare 대시보드 → Zero Trust → Access → Applications → Add → Self-hosted).
    - 도메인: `lightica.lightsoft.dev`(경로 비움, 호스트 전체).
-   - 정책: Allow, Include에 Emails ending in `@lightsoft.dev`. 외부 협업자는 같은 정책의 Include에 Emails로 하나씩 추가합니다. Include 규칙끼리는 OR입니다.
+   - 정책: 재사용 정책 "lightsoft.dev 팀원"(Allow, Emails ending in `@lightsoft.dev`)을 연결합니다. 다른 Access 앱도 같이 쓰는 정책이라 여기에 외부 이메일을 넣지 않습니다. 외부 협업자는 Lightica 앱에 별도 Allow 정책(Emails 목록)을 추가합니다. 정책끼리는 OR입니다.
    - 로그인 방법: **이메일 One-time PIN 하나만** 둡니다. 외부 협업자도 회사 계정 없이 이메일로 들어올 수 있습니다. IdP가 하나뿐이므로 Instant Auth를 켜서 IdP 선택 화면을 건너뜁니다.
    - 세션 길이: 7일. 세션이 끝나면 열어 둔 탭은 새로고침해야 합니다.
    - 만든 뒤 앱의 **Application Audience (AUD) Tag**와 Zero Trust **팀 도메인**(`<팀>.cloudflareaccess.com`)을 적어 둡니다.
@@ -47,13 +47,15 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
 
 ## Access 로그인 화면
 
+현재 구성(2026-11-20): Zero Trust 팀 `lightsoft-crew.cloudflareaccess.com`, Access 앱 "Lightica"(`lightica.lightsoft.dev`, 이메일 OTP만, Instant Auth, 세션 7일), 터널 `lightica`. Zero Trust 플랜은 Free("Teams Free Base")라서 템플릿 없이 Cloudflare 기본 화면("Log in to Lightica")이 나옵니다.
+
 tailnet 밖 사용자가 처음 보는 화면은 Cloudflare가 띄우는 Access 로그인 화면(`<팀>.cloudflareaccess.com`)입니다. Access를 통과하면 Lightica 로그인 화면을 거치지 않고 바로 자동 로그인됩니다. Lightica 로그인 화면은 tailnet으로 접속할 때, 그리고 초대되지 않은 이메일이거나 직접 로그아웃한 뒤에만 보입니다. 그래서 Lightica처럼 보여야 하는 쪽은 Access 화면입니다.
 
 - **템플릿**: `login-page.html`. Lightica 로그인 카드와 같은 모양이고(로고, "Sign in to Lightica", 라이트·다크), 가운데 `<cf-access-authbox>`에 Cloudflare가 이메일 OTP 입력을 채웁니다. 이 요소는 정확히 한 번, Liquid 조건 밖에 있어야 합니다. 로그인 오류 문구(`message.text`)도 지우지 않습니다. 스크립트와 직접 만든 폼은 쓸 수 없습니다.
 - **지정**: Zero Trust → Reusable components → Custom pages에서 Login 유형으로 등록(API `POST /accounts/{id}/access/custom_pages`, `type: login`, `contract_version: 1`)하고, Lightica 앱의 Login page에만 지정합니다(앱의 `custom_pages`). **계정 기본값으로 두지 않습니다.** 기본값으로 두면 songtest 같은 다른 Access 앱도 "Sign in to Lightica"가 됩니다.
 - **로고**: 로그인 전에 불러야 하므로 Access 뒤의 Lightica 주소에는 둘 수 없습니다. 공개 레포의 `lightica-login-logo.png`를 `https://raw.githubusercontent.com/lightsoft-dev/multica/lightsoft/dev/lightsoft/access/lightica-login-logo.png`로 씁니다. 이 PR이 `lightsoft/dev`에 merge된 뒤에 보입니다.
 - **고칠 때**: 이 파일을 고친 뒤 같은 custom page를 갱신합니다(`PUT /accounts/{id}/access/custom_pages/{uid}`). 템플릿에 문제가 있어 렌더링이 안 되면 Access는 기본 화면으로 돌아가고, 정책 판단은 바뀌지 않습니다.
-- 템플릿은 Zero Trust Pay-as-you-go 이상에서만 됩니다. Free 플랜이면 Custom pages → Access login page에서 이름·로고 URL·배경색만 바꿀 수 있고, 이 설정은 모든 Access 앱에 적용됩니다.
+- 템플릿은 Zero Trust Pay-as-you-go 이상에서만 됩니다. Workers·R2 유료 구독과는 별개입니다. 템플릿 HTML을 대시보드 세션에서 API로 직접 보내면 대시보드 WAF가 XSS로 보고 막습니다(403 "Sorry, you have been blocked"). 대시보드 화면의 편집기나 API 토큰으로 넣습니다. Free 플랜이면 Custom pages → Access login page에서 이름·로고 URL·배경색만 바꿀 수 있고, 이 설정은 모든 Access 앱에 적용됩니다.
 
 ## 끄기
 

@@ -22,9 +22,10 @@ DOMAIN="gui/$(id -u)"
 CF="$(command -v cloudflared)" || { echo "install.sh: cloudflared not found (brew install cloudflared)" >&2; exit 1; }
 [ -s "$HOME/.cloudflared/cert.pem" ] || { echo "install.sh: run 'cloudflared tunnel login' once first" >&2; exit 1; }
 
+# A live tunnel reports deleted_at as the zero time (0001-01-01T00:00:00Z).
 tunnel_id() {
   "$CF" tunnel list --output json --name "$TUNNEL_NAME" 2>/dev/null \
-    | python3 -I -c 'import json,sys; t=[x for x in json.load(sys.stdin) or [] if not x.get("deleted_at")]; print(t[0]["id"] if t else "")'
+    | python3 -I -c 'import json,sys; t=[x for x in json.load(sys.stdin) or [] if (x.get("deleted_at") or "0001-").startswith("0001-")]; print(t[0]["id"] if t else "")'
 }
 
 id="$(tunnel_id)"
@@ -58,9 +59,11 @@ done
 launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null || { sleep 2; launchctl bootstrap "$DOMAIN" "$PLIST"; }
 
 # Access answers an anonymous request with a redirect to its login page (or a
-# 401/403); the origin would answer /health with 200.
-for _ in $(seq 1 45); do
-  read -r code location < <(curl -s -o /dev/null --max-time 5 -w '%{http_code} %{redirect_url}\n' "https://$HOST/health" || echo "000 -")
+# 401/403); the origin would answer /health with 200. Resolve over DoH so a
+# negative answer cached before the record existed does not stall the check.
+for _ in $(seq 1 90); do
+  read -r code location < <(curl -s -o /dev/null --max-time 5 --doh-url https://cloudflare-dns.com/dns-query \
+    -w '%{http_code} %{redirect_url}\n' "https://$HOST/health" || echo "000 -")
   case "$code" in
     2??)
       stop_tunnel

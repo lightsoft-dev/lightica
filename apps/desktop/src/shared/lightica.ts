@@ -24,10 +24,25 @@ export const LIGHTICA_PROFILE_PREFIX = "lightica";
 // production API on `/api` and `/ws`, so one URL covers api, ws and app.
 export const LIGHTICA_DEFAULT_API_URL = "https://mac-studio.taile83671.ts.net:3444";
 
-// Lightica never polls an update feed: a new build is installed by hand after
-// `lightsoft/dev` moves, so upstream releases can never replace it. Typed as
-// boolean so the updater keeps upstream's code path compiled and testable.
-export const LIGHTICA_AUTO_UPDATE: boolean = false;
-// Shown by the manual "check for updates" action.
-export const LIGHTICA_UPDATES_DISABLED_MESSAGE =
-  "Lightica는 자동 업데이트를 쓰지 않습니다. 새 빌드(dmg)를 받아 다시 설치하세요.";
+// The team release channel (LIGH-191): lightsoft/desktop/release.sh publishes
+// each build here and Tailscale serves it on the team client origin, so only
+// the tailnet can reach it. electron-builder.yml `publish.url` must match.
+export const LIGHTICA_UPDATE_FEED_URL = `${LIGHTICA_DEFAULT_API_URL}/lightica/`;
+// The release page (version history and downloads) is the feed's index.html.
+export const LIGHTICA_RELEASES_URL = LIGHTICA_UPDATE_FEED_URL;
+
+// latest-mac.yml key that release.sh adds: the code-signing team ID of the
+// published build. Squirrel.Mac only installs a bundle signed by the running
+// app's own Developer ID team, so the app installs an update itself only when
+// this matches its own signature and otherwise links to the dmg.
+export const LIGHTICA_FEED_SIGNING_TEAM_KEY = "lighticaSigningTeam";
+
+// Copy for the "install it yourself" path. Lightica's own strings stay here
+// (Korean, for the team) instead of upstream's locale files.
+export const LIGHTICA_UPDATE_COPY = {
+  manualTitle: (version: string) => `Lightica v${version}`,
+  manualBody: "새 버전이 있습니다. dmg를 받아 Applications의 Lightica를 덮어쓰세요.",
+  manualStatus: (version: string) => `새 버전 v${version}을(를) 받을 수 있습니다.`,
+  download: "다운로드",
+  releases: "릴리스 기록",
+};

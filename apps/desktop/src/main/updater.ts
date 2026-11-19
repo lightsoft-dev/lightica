@@ -1,4 +1,4 @@
-import { autoUpdater, type UpdateDownloadedEvent } from "electron-updater";
+import { autoUpdater, type UpdateDownloadedEvent, type UpdateInfo } from "electron-updater";
 import { app, type BrowserWindow, type MessageBoxOptions, ipcMain } from "electron";
 import type {
   ManualUpdateCheckResult,
@@ -13,7 +13,8 @@ import {
 } from "./updater-preferences";
 import type { DaemonInstallPrep } from "./update-install-gate";
 import { classifyUpdaterError } from "./updater-errors";
-import { LIGHTICA_AUTO_UPDATE, LIGHTICA_UPDATES_DISABLED_MESSAGE } from "../shared/lightica";
+import { LIGHTICA_UPDATE_FEED_URL } from "../shared/lightica";
+import { canInstallUpdate, manualDownloadUrl, readOwnSigningTeam } from "./lightica-update";
 
 // Silent background updates: electron-updater downloads on its own as soon
 // as `update-available` fires; we only surface UI when the package is fully
@@ -75,6 +76,8 @@ export interface UpdaterDaemonGate {
 export interface SetupAutoUpdaterOptions {
   daemonGate?: UpdaterDaemonGate;
   platform?: NodeJS.Platform;
+  /** Lightica: the Developer ID team that signed this app (lightica-update.ts). */
+  readSigningTeam?: () => string | null | Promise<string | null>;
 }
 
 export function createElectronBusyInstallPrompt(
@@ -142,13 +145,25 @@ export function setupAutoUpdater(
       setDownloadState({ status: "error", reason: classifyUpdaterError(err) });
     }
   };
+  // Lightica (LIGH-191): read the team channel, never upstream releases, and
+  // download only an update this app's signature can install (see
+  // "update-available"). The signature is read once, long before the first
+  // background check; `undefined` means it is not known yet.
+  autoUpdater.setFeedURL({ provider: "generic", url: LIGHTICA_UPDATE_FEED_URL });
+  autoUpdater.autoDownload = false;
+  const readSigningTeam =
+    options.readSigningTeam ?? (() => (app.isPackaged ? readOwnSigningTeam() : null));
+  const ownTeam = readSigningTeam();
+  let signingTeam: string | null | undefined = ownTeam instanceof Promise ? undefined : ownTeam;
+  const signingTeamReady = Promise.resolve(ownTeam)
+    .catch(() => null)
+    .then((team) => {
+      signingTeam = team;
+      return team;
+    });
   // Startup, periodic, and manual checks share one in-flight metadata request.
   let inFlightCheck: ReturnType<typeof autoUpdater.checkForUpdates> | null = null;
   function checkForUpdatesOnce(): ReturnType<typeof autoUpdater.checkForUpdates> {
-    // Lightica has no update feed: upstream releases must never replace it.
-    if (!LIGHTICA_AUTO_UPDATE) {
-      return Promise.reject(new Error(LIGHTICA_UPDATES_DISABLED_MESSAGE));
-    }
     if (inFlightCheck) return inFlightCheck;
     const pending = autoUpdater.checkForUpdates().then((result) => {
       // Metadata resolves before the automatic download. Handle rejection even
@@ -195,8 +210,6 @@ export function setupAutoUpdater(
   // Arm the startup + periodic background checks. Idempotent: an already-armed
   // timer is left in place so re-enabling never stacks duplicate schedules.
   const scheduleBackgroundChecks = (): void => {
-    // Lightica: nothing to poll (see checkForUpdatesOnce).
-    if (!LIGHTICA_AUTO_UPDATE) return;
     if (startupTimer === null && !startupCheckElapsed) {
       // Initial check shortly after startup so we don't block boot.
       startupTimer = setTimeout(() => {
@@ -288,8 +301,27 @@ export function setupAutoUpdater(
     });
   }
 
+  const offerUpdate = (info: UpdateInfo, team: string | null): void => {
+    if (canInstallUpdate(team, info)) {
+      setDownloadState({ status: "downloading", version: info.version });
+      autoUpdater.downloadUpdate().catch((err) => {
+        console.error("Failed to download update:", err);
+        reportDownloadFailure(err);
+      });
+    } else {
+      setDownloadState({
+        status: "manual",
+        version: info.version,
+        downloadUrl: manualDownloadUrl(info),
+      });
+    }
+  };
+
   autoUpdater.on("update-available", (info) => {
-    setDownloadState({ status: "downloading", version: info.version });
+    // Synchronous once the signature is known, so a manual check's result
+    // already carries the decision.
+    if (signingTeam !== undefined) offerUpdate(info, signingTeam);
+    else void signingTeamReady.then((team) => offerUpdate(info, team));
     // Forwarded for renderer-side state tracking only; the notification UI
     // does not render an "available" affordance with autoDownload=true.
     broadcast("updater:update-available", {
@@ -371,9 +403,6 @@ export function setupAutoUpdater(
   );
 
   ipcMain.handle("updater:check", async (): Promise<ManualUpdateCheckResult> => {
-    if (!LIGHTICA_AUTO_UPDATE) {
-      return { ok: false, error: LIGHTICA_UPDATES_DISABLED_MESSAGE, reason: "unavailable" };
-    }
     try {
       const result = (await checkForUpdatesOnce()) as
         | { updateInfo: { version: string }; isUpdateAvailable?: boolean }

@@ -6,7 +6,7 @@ import { useT } from "@multica/views/i18n";
 import { SettingsCard, SettingsRow, SettingsTab } from "@multica/views/settings";
 import { toast } from "sonner";
 import type { UpdaterDownloadState, UpdaterFailureReason } from "../../../shared/updater-types";
-import { LIGHTICA_AUTO_UPDATE, LIGHTICA_UPDATES_DISABLED_MESSAGE } from "../../../shared/lightica";
+import { LIGHTICA_UPDATE_COPY } from "../../../shared/lightica";
 
 type CheckState =
   | { status: "idle" }
@@ -14,12 +14,14 @@ type CheckState =
   | { status: "up-to-date" }
   | { status: "available"; latestVersion: string }
   | { status: "downloaded"; latestVersion: string }
+  | { status: "manual"; latestVersion: string; downloadUrl: string }
   | { status: "error"; reason: UpdaterFailureReason; downloading?: boolean };
 
 function downloadCheckState(state: UpdaterDownloadState): CheckState {
   switch (state.status) {
     case "downloading": return { status: "available", latestVersion: state.version };
     case "downloaded": return { status: "downloaded", latestVersion: state.version };
+    case "manual": return { status: "manual", latestVersion: state.version, downloadUrl: state.downloadUrl };
     case "error": return { status: "error", reason: state.reason, downloading: true };
     default: return { status: "idle" };
   }
@@ -49,7 +51,7 @@ export function UpdatesSettingsTab() {
       });
     });
     void window.updater.getDownloadState().then((download) => {
-      if (mounted && !receivedEvent && (download.status === "downloading" || download.status === "downloaded")) {
+      if (mounted && !receivedEvent && (download.status === "downloading" || download.status === "downloaded" || download.status === "manual")) {
         setState(downloadCheckState(download));
       }
     }).catch(() => { /* A manual check can still recover when IPC is available. */ });
@@ -116,8 +118,6 @@ export function UpdatesSettingsTab() {
   }, []);
 
   const failureMessage = state.status !== "error" ? ""
-    // Lightica has no update feed, so every check ends here with the manual-install notice.
-    : !LIGHTICA_AUTO_UPDATE ? LIGHTICA_UPDATES_DISABLED_MESSAGE
     : state.downloading ? t(($) => $.desktop.updates.download_failed)
       : state.reason === "network" ? t(($) => $.desktop.updates.check_network)
         : state.reason === "unavailable" ? t(($) => $.desktop.updates.check_unavailable)
@@ -170,6 +170,19 @@ export function UpdatesSettingsTab() {
                 <p role="status" className="mt-2 inline-flex items-center gap-1.5">
                   <AlertCircle className="size-3.5 shrink-0" />
                   {failureMessage}
+                </p>
+              )}
+              {state.status === "manual" && (
+                <p role="status" className="mt-2 inline-flex flex-wrap items-center gap-1.5">
+                  <ArrowDownToLine className="size-3.5 shrink-0 text-primary" />
+                  {LIGHTICA_UPDATE_COPY.manualStatus(state.latestVersion)}
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => void window.desktopAPI.openExternal(state.downloadUrl)}
+                  >
+                    {LIGHTICA_UPDATE_COPY.download}
+                  </Button>
                 </p>
               )}
               {state.status === "downloaded" && (

@@ -8,6 +8,8 @@ export type UpdaterDownloadState =
   | { status: "idle" }
   | { status: "downloading"; version: string }
   | { status: "downloaded"; version: string }
+  // Lightica (LIGH-191): this app cannot install the published build itself.
+  | { status: "manual"; version: string; downloadUrl: string }
   | { status: "error"; reason: UpdaterFailureReason };
 
 export type ManualUpdateCheckResult =

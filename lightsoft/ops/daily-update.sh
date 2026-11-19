@@ -54,6 +54,7 @@ DRY_RUN="${DRY_RUN:-0}"
 
 LOG_DIR="$OPS_HOME/logs"
 STATE_DIR="$OPS_HOME/state"
+FORK_FAILED_STATE="$STATE_DIR/fork-backend.failed"  # tree of the last fork backend that did not come up
 mkdir -p "$LOG_DIR" "$STATE_DIR" "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -198,16 +199,19 @@ prune_old_images() {  # keep only $1 (current) and $2 (previous, the rollback ta
 }
 
 # Fork images carry a release tag (what compose runs) and a team version tag per
-# build. Keep the release tags $1 and $2 and the newest $KEEP_FORK_BUILDS builds;
-# untagging a build whose image a kept release tag still names frees nothing.
+# build. After a release upgrade keep the release tags $1 (current) and $2
+# (previous, the rollback target); always keep the newest $KEEP_FORK_BUILDS builds.
+# Untagging a build whose image a kept release tag still names frees nothing.
 prune_fork_images() {
   local tag
-  docker images --format '{{.Tag}}' "$FORK_BACKEND_IMAGE" | grep -E '^v[0-9]' | while read -r tag; do
-    case "$tag" in
-      "$1"|"$2") ;;
-      *) docker rmi "$FORK_BACKEND_IMAGE:$tag" >/dev/null 2>&1 && log "removed fork image tag $tag" ;;
-    esac
-  done
+  if [ "$1" != "$2" ]; then
+    docker images --format '{{.Tag}}' "$FORK_BACKEND_IMAGE" | grep -E '^v[0-9]' | while read -r tag; do
+      case "$tag" in
+        "$1"|"$2") ;;
+        *) docker rmi "$FORK_BACKEND_IMAGE:$tag" >/dev/null 2>&1 && log "removed fork image tag $tag" ;;
+      esac
+    done
+  fi
   docker images --format '{{.Tag}}' "$FORK_BACKEND_IMAGE" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]{8}' | sort -rV \
     | tail -n +"$((KEEP_FORK_BUILDS + 1))" | while read -r tag; do
       docker rmi "$FORK_BACKEND_IMAGE:$tag" >/dev/null 2>&1 && log "removed fork build $tag"
@@ -287,8 +291,13 @@ update_production() {
     failed "포크 backend: $target merge 실패 → 운영은 $cur 그대로"; cd "$OPS_HOME"; return
   fi
 
-  # 2. Build (fork backend only).
+  # 2. Build (fork backend only). A tree that already failed to come up is not
+  # redeployed every morning; a new commit (or deleting the state file) retries.
   if [ $fork = 1 ]; then
+    if [ "$(cat "$FORK_FAILED_STATE" 2>/dev/null)" = "$(git rev-parse 'HEAD^{tree}')" ]; then
+      log "fork backend: $TEAM_BRANCH $(git rev-parse --short HEAD) already failed to come up — not retrying (rm $FORK_FAILED_STATE to retry)"
+      drop_local_merge; cd "$OPS_HOME"; return
+    fi
     if fork_build_needed "$target" HEAD; then
       prev_alias="$(image_id "$FORK_BACKEND_IMAGE:$target")"
       if ! version="$(RELEASE="$target" IMAGE="$FORK_BACKEND_IMAGE" bash lightsoft/backend/build.sh)"; then
@@ -324,12 +333,14 @@ update_production() {
   [ -n "$version" ] && what="$what (포크 backend \`$version\`, $(git rev-parse --short HEAD))"
   if wait_backend "$want"; then
     changed "운영 Multica $what (DB 백업: \`$backup\`)"
+    rm -f "$FORK_FAILED_STATE"
     prune_backups
     [ "$target" = "$cur" ] || prune_old_images "$target" "$cur"
     [ $fork = 1 ] && prune_fork_images "$target" "$cur"
     push_team_branch
   else
     log "production: $target did not become healthy — rolling back to $cur"
+    [ $fork = 1 ] && git rev-parse 'HEAD^{tree}' > "$FORK_FAILED_STATE"
     env_set MULTICA_IMAGE_TAG "$cur"
     restore_alias "$version" "$target" "$cur" "$prev_alias"
     compose up -d --no-deps backend frontend

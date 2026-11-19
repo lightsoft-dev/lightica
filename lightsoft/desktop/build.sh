@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Builds a signed, notarized and stapled Lightica dmg from this checkout and
-# checks it the way Gatekeeper will (LIGH-110). macOS only.
+# Builds a signed, notarized and stapled Lightica dmg (plus the zip that
+# in-app updates install) from this checkout and checks it the way Gatekeeper
+# will (LIGH-110). macOS only. To publish the result to the team, use
+# lightsoft/desktop/release.sh, which runs this.
 #
 #   lightsoft/desktop/build.sh            # Apple silicon (arm64)
 #   lightsoft/desktop/build.sh --x64      # Intel
@@ -13,6 +15,10 @@
 #   APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER   App Store Connect API key
 #   APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD                Apple ID
 # Values are passed through and never printed. See lightsoft/desktop/README.md.
+#
+# Version: <upstream release>-<YYYYMMDD>[.N] from lightsoft/version.sh, with
+# the versions already in the release feed (LIGHTICA_FEED_DIR) taken. Set
+# DESKTOP_BUILD_VERSION to force one. The app and its bundled CLI both get it.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -73,22 +79,26 @@ xcrun notarytool history "${notary[@]}" >/dev/null 2>&1 \
 # ----------------------------------------------------------------- source ----
 step "version"
 cd "$root"
-# package.mjs derives the version from `git describe` over upstream release
-# tags; a fork clone may not have them.
-if ! git describe --tags --match 'v[0-9]*' >/dev/null 2>&1; then
-  git fetch -q --no-tags https://github.com/multica-ai/multica.git 'refs/tags/v*:refs/tags/v*'
+feed_dir="${LIGHTICA_FEED_DIR:-$HOME/.multica/lightica/feed}"
+if [ -z "${DESKTOP_BUILD_VERSION:-}" ]; then
+  DESKTOP_BUILD_VERSION="$(node "$root/lightsoft/desktop/release-feed.mjs" versions "$feed_dir" --arch "${arch#--}" \
+    | bash "$root/lightsoft/version.sh" --taken -)"
 fi
-git describe --tags --match 'v[0-9]*' --always --dirty
+# scripts/package.mjs (app) and scripts/bundle-cli.mjs (CLI) read it.
+export DESKTOP_BUILD_VERSION
+echo "$DESKTOP_BUILD_VERSION ($(git describe --tags --match 'v[0-9]*' --always --dirty))"
 
 # ------------------------------------------------------------------ build ----
 step "build"
 pnpm install --frozen-lockfile
-# dmg only: the zip exists for electron-updater, which Lightica does not use.
-(cd "$desktop" && pnpm package -- --mac dmg "$arch")
+# The zip (and latest-mac.yml) is what in-app updates download and install.
+(cd "$desktop" && pnpm package -- --mac dmg zip "$arch")
 
-dmg="$(ls -t "$desktop"/dist/lightica-*-mac-*.dmg | head -1)"
+dmg="$desktop/dist/lightica-$DESKTOP_BUILD_VERSION-mac-${arch#--}.dmg"
+zip="$desktop/dist/lightica-$DESKTOP_BUILD_VERSION-mac-${arch#--}.zip"
 app="$(ls -d "$desktop"/dist/mac*/Lightica.app | head -1)"
-[ -f "$dmg" ] || die "no dmg under $desktop/dist"
+[ -f "$dmg" ] || die "no $(basename "$dmg") under $desktop/dist"
+[ -f "$zip" ] || die "no $(basename "$zip") under $desktop/dist"
 [ -d "$app" ] || die "no Lightica.app under $desktop/dist"
 
 # electron-builder notarizes and staples the .app only; do the dmg as well so
@@ -106,6 +116,14 @@ xcrun stapler validate "$app"
 spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
 xcrun stapler validate "$dmg"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist"
+app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
+[ "$app_version" = "$DESKTOP_BUILD_VERSION" ] || die "app version is $app_version, expected $DESKTOP_BUILD_VERSION"
+# The daemon reports this as its runtime version (설정 → 런타임).
+cli="$app/Contents/Resources/app.asar.unpacked/resources/bin/multica"
+cli_version="$("$cli" version --output json | node -e 'let s="";process.stdin.on("data",(d)=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')"
+[ "$cli_version" = "$DESKTOP_BUILD_VERSION" ] || die "bundled CLI version is $cli_version, expected $DESKTOP_BUILD_VERSION"
+echo "bundled CLI $cli_version"
 
 step "done"
 echo "$dmg"
+echo "$zip"

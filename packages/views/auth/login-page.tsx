@@ -44,6 +44,8 @@ interface CliCallbackConfig {
 interface LoginPageProps {
   /** Logo element rendered above the title */
   logo?: ReactNode;
+  /** Sign-in heading. Defaults to the translated "Sign in to Multica". */
+  title?: ReactNode;
   /** Called after successful login. The workspace list is seeded into React
    *  Query before this fires, so the caller can compute a destination URL. */
   onSuccess: () => void;
@@ -95,6 +97,7 @@ export function validateCliCallback(cliCallback: string): boolean {
 
 export function LoginPage({
   logo,
+  title,
   onSuccess,
   google,
   cliCallback,
@@ -413,7 +416,7 @@ export function LoginPage({
         <CardHeader className="text-center">
           {logo && <div className="mx-auto mb-4">{logo}</div>}
           <CardTitle className="text-display-sm">
-            {t(($) => $.signin.title)}
+            {title ?? t(($) => $.signin.title)}
           </CardTitle>
           <CardDescription>
             {t(($) => $.signin.description)}

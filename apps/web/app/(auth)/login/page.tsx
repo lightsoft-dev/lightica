@@ -25,6 +25,7 @@ import {
 } from "@multica/ui/components/ui/card";
 import { Button } from "@multica/ui/components/ui/button";
 import { Loader2 } from "@multica/ui/icons";
+import { LighticaIcon } from "@multica/ui/components/common/lightica-icon";
 import { CliCallbackError } from "@/features/auth/cli-callback-error";
 import { setLoggedInCookie } from "@/features/auth/auth-cookie";
 import Link from "next/link";
@@ -240,6 +241,9 @@ function LoginPageContent() {
 
   return (
     <LoginPage
+      // Lightsoft fork (LIGH-253): the team client signs in as Lightica.
+      logo={<LighticaIcon size={48} />}
+      title={t(($) => $.signin.title).replace("Multica", "Lightica")}
       onSuccess={handleSuccess}
       google={
         googleClientId

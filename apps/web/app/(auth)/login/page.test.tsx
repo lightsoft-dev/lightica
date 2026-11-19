@@ -117,6 +117,12 @@ describe("LoginPage", () => {
     },
   );
 
+  it("signs in under the Lightica name", () => {
+    render(<LoginPage />, { wrapper: createWrapper() });
+    expect(screen.getByText("Sign in to Lightica")).toBeInTheDocument();
+    expect(screen.queryByText(/sign in to multica/i)).not.toBeInTheDocument();
+  });
+
   it("blocks an explicitly empty CLI callback", () => {
     searchParamsState.params = new URLSearchParams({ cli_callback: "" });
     render(<LoginPage />, { wrapper: createWrapper() });

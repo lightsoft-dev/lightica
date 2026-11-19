@@ -55,4 +55,8 @@ export const LIGHTICA_UPDATE_COPY = {
   manualStatus: (version: string) => `새 버전 v${version}을(를) 받을 수 있습니다.`,
   download: "다운로드",
   releases: "릴리스 기록",
+  // macOS notification (LIGH-257): reaches someone who is not looking at the
+  // window, where the banner above lives. Clicking it opens that window.
+  readyNotificationTitle: "Lightica 업데이트 준비됨",
+  readyNotificationBody: (version: string) => `v${version}이(가) 준비됐습니다. 다시 시작하면 적용됩니다.`,
 };

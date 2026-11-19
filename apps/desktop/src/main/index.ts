@@ -14,6 +14,7 @@ import { pathToFileURL } from "url";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import fixPath from "fix-path";
 import { createElectronBusyInstallPrompt, setupAutoUpdater } from "./updater";
+import { updateNotificationContent, type UpdateNotice } from "./lightica-update";
 import {
   prepareDaemonForUpdateInstall,
   resumeDaemonAfterAbortedUpdateInstall,
@@ -207,6 +208,29 @@ function focusWindow(window: BrowserWindow): void {
   if (window.isMinimized()) window.restore();
   window.show();
   window.focus();
+}
+
+// Lightica (LIGH-257): the update banner only reaches someone looking at a
+// window, so a system notification tells everyone else. Clicking it brings a
+// main window (and its banner) forward. Held until clicked or closed so the
+// click handler is not garbage-collected.
+const updateNotifications = new Set<Notification>();
+function showUpdateNotification(notice: UpdateNotice): void {
+  if (!Notification.isSupported()) return;
+  if (BrowserWindow.getAllWindows().some(windowForeground)) return;
+  const notification = new Notification(updateNotificationContent(notice));
+  notification.on("click", () => {
+    updateNotifications.delete(notification);
+    const window = ensureMainWindow();
+    if (window) focusWindow(window);
+  });
+  notification.on("close", () => updateNotifications.delete(notification));
+  notification.on("failed", (_event, error) => {
+    updateNotifications.delete(notification);
+    console.warn("Update notification delivery failed:", error);
+  });
+  updateNotifications.add(notification);
+  notification.show();
 }
 
 function windowStateFile(): string {
@@ -1097,6 +1121,7 @@ if (!gotTheLock) {
             : dialog.showMessageBox(options);
         }),
       },
+      onUpdateNotice: showUpdateNotification,
     });
     setupDaemonManager(
       () => mainWindows.mostRecent(),

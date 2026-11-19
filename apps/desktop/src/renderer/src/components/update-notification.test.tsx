@@ -95,6 +95,15 @@ describe("UpdateNotification", () => {
     });
   });
 
+  it("offers the restart in a window opened after the download", async () => {
+    initialDownloadState = { status: "downloaded", version: "0.11.1-20261121" };
+    render(<UpdateNotification />);
+
+    expect(await screen.findByText("v0.11.1-20261121 will be applied on next launch.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restart now" }));
+    expect(mocks.installUpdate).toHaveBeenCalledOnce();
+  });
+
   it("still installs the update immediately from the primary action", () => {
     render(<UpdateNotification />);
     act(() => updateDownloaded({ version: "0.4.27" }));

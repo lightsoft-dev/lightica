@@ -7,22 +7,26 @@ import { LIGHTICA_RELEASES_URL, LIGHTICA_UPDATE_COPY } from "../../../shared/lig
 // autoDownload=true). The renderer only renders UI once the package is fully
 // downloaded and waiting for a restart.
 // Lightica (LIGH-191): when this app cannot install the published build
-// itself, the banner links to its dmg instead ("manual").
+// itself, the banner links to its dmg instead ("manual"). A window opened after
+// the download (say, from the update's system notification) reads the state
+// main already holds (LIGH-257).
 type UpdateState =
   | { status: "idle" }
   | { status: "ready"; version: string }
   | { status: "manual"; version: string; downloadUrl: string };
 
-function manualState(download: UpdaterDownloadState): UpdateState | null {
-  return download.status === "manual"
-    ? { status: "manual", version: download.version, downloadUrl: download.downloadUrl }
-    : null;
+function bannerState(download: UpdaterDownloadState): UpdateState | null {
+  if (download.status === "downloaded") return { status: "ready", version: download.version };
+  if (download.status === "manual") {
+    return { status: "manual", version: download.version, downloadUrl: download.downloadUrl };
+  }
+  return null;
 }
 
 export function UpdateNotification() {
   const [state, setState] = useState<UpdateState>({ status: "idle" });
   const [dismissed, setDismissed] = useState(false);
-  const shownManualVersion = useRef<string | null>(null);
+  const shownState = useRef<string | null>(null);
 
   useEffect(() => {
     const cleanup = window.updater.onUpdateDownloaded((info) => {
@@ -36,14 +40,15 @@ export function UpdateNotification() {
     let mounted = true;
     // Checks repeat hourly; only a newer version brings a dismissed banner back.
     const show = (next: UpdateState | null) => {
-      if (!next || next.status !== "manual" || !mounted) return;
-      if (shownManualVersion.current === next.version) return;
-      shownManualVersion.current = next.version;
+      if (!next || next.status === "idle" || !mounted) return;
+      const key = `${next.status}:${next.version}`;
+      if (shownState.current === key) return;
+      shownState.current = key;
       setState(next);
       setDismissed(false);
     };
-    const unsubscribe = window.updater.onDownloadState((download) => show(manualState(download)));
-    void window.updater.getDownloadState().then((download) => show(manualState(download))).catch(() => {});
+    const unsubscribe = window.updater.onDownloadState((download) => show(bannerState(download)));
+    void window.updater.getDownloadState().then((download) => show(bannerState(download))).catch(() => {});
     return () => {
       mounted = false;
       unsubscribe();

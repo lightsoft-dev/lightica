@@ -472,6 +472,32 @@ describe("Lightica update feed", () => {
     expect(ctx.downloadUpdate).not.toHaveBeenCalled();
   });
 
+  it("tells the user once per version that an update is ready", () => {
+    const onUpdateNotice = vi.fn();
+    setupAutoUpdater(() => [], { readSigningTeam: () => TEAM, onUpdateNotice });
+
+    // Hourly checks download the same cached build again.
+    emitUpdater("update-downloaded", { version: "0.11.1-20261121" });
+    emitUpdater("update-downloaded", { version: "0.11.1-20261121" });
+    emitUpdater("update-downloaded", { version: "0.11.1-20261122" });
+
+    expect(onUpdateNotice.mock.calls).toEqual([
+      [{ kind: "ready", version: "0.11.1-20261121" }],
+      [{ kind: "ready", version: "0.11.1-20261122" }],
+    ]);
+  });
+
+  it("tells the user once about a dmg it cannot install itself", async () => {
+    const onUpdateNotice = vi.fn();
+    setupAutoUpdater(() => [], { readSigningTeam: () => null, onUpdateNotice });
+    publishOnCheck(feedInfo(TEAM));
+    await invokeIpc("updater:check");
+    publishOnCheck(feedInfo(TEAM));
+    await invokeIpc("updater:check");
+
+    expect(onUpdateNotice.mock.calls).toEqual([[{ kind: "manual", version: "0.11.0-20261120" }]]);
+  });
+
   it("decides only once it knows its own signature", async () => {
     let resolveTeam!: (team: string | null) => void;
     setupAutoUpdater(() => [], {

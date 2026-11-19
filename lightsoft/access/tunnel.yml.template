@@ -1,0 +1,24 @@
+# Cloudflare Tunnel for the team client outside the tailnet (LIGH-253).
+# Rendered by lightsoft/access/install.sh into ~/.cloudflared/lightica.yml.
+# Same routes as `tailscale serve :3444`, except the project terminal, which
+# stays tailnet-only. Every route sits behind the Cloudflare Access
+# application for __HOST__; install.sh refuses to keep the tunnel up otherwise.
+tunnel: __TUNNEL_ID__
+credentials-file: __HOME__/.cloudflared/__TUNNEL_ID__.json
+
+ingress:
+  - hostname: __HOST__
+    path: ^/(api|ws|v1|health)(/|$)
+    service: http://127.0.0.1:8080
+  - hostname: __HOST__
+    path: ^/lightsoft-secrets(/|$)
+    service: http://127.0.0.1:13300
+  - hostname: __HOST__
+    path: ^/lightica(/|$)
+    service: http://127.0.0.1:13400
+  - hostname: __HOST__
+    path: ^/lightsoft-term(/|$)
+    service: http_status:404
+  - hostname: __HOST__
+    service: http://127.0.0.1:13000
+  - service: http_status:404

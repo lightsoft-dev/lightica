@@ -8,6 +8,7 @@
 |---|---|---|
 | 운영 (원본) | https://mac-studio.taile83671.ts.net:3443 | self-host Multica (compose 프로젝트 `multica`) |
 | **팀 클라이언트** | https://mac-studio.taile83671.ts.net:3444 | 이 브랜치로 빌드한 웹 (compose 프로젝트 `multica-team-web`) |
+| 팀 클라이언트 (tailnet 밖) | 예: https://lightica.lightsoft.dev | 같은 팀 웹. Cloudflare Tunnel + Access 뒤, Access 계정으로 자동 로그인 (`lightsoft/access/README.md`, LIGH-253) |
 
 쿠키가 같은 호스트에 저장되므로, 운영(:3443)에 로그인했다면 팀 클라이언트(:3444)에서도 로그인된 상태입니다.
 
@@ -22,6 +23,7 @@
                     └─ /lightica                    → 127.0.0.1:13400  (Lightica 릴리스 피드, launchd. LIGH-191)
 ```
 
+- tailnet 밖 접속(Cloudflare Tunnel + Access, Access 계정으로 자동 로그인)은 `lightsoft/access/README.md`에 설정 순서·로그인 규칙·끄는 법이 있습니다. 브라우저 전용이고, 터미널은 그 경로로 열지 않습니다.
 - 프로젝트 터미널(owner/admin 전용)은 `lightsoft/terminal/README.md`에 설치·규칙이 있습니다. 팀 클라이언트 이미지와 별개로 `bash lightsoft/terminal/install.sh`로 갱신합니다.
 - 팀 데스크톱 앱 **Lightica**(팀 클라이언트 서버에 붙는 서명·공증된 macOS 앱)의 빌드·배포는 `lightsoft/desktop/README.md`에 있습니다. 릴리스는 `lightsoft/desktop/release.sh`가 `/lightica/` 피드에 게시하고, 설치된 앱은 그 피드에서 새 버전을 찾습니다.
 - 팀 빌드 버전은 `<upstream 릴리스>-<YYYYMMDD>[.N]`(예: `0.11.0-20261119`)이고 `lightsoft/version.sh` 한 곳에서 계산합니다. Lightica와 번들 CLI가 이 버전을 씁니다.

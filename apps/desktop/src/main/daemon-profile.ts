@@ -24,14 +24,16 @@ export function assertResolvedProfile(profile: string): void {
 
 // Desktop owns a dedicated CLI profile named after the target API host, so it
 // never reads or writes the user's hand-configured profiles. Profile dir:
-//   ~/.multica/profiles/desktop-<host>/
-export function deriveProfileName(targetUrl: string): string {
+//   ~/.multica/profiles/<prefix>-<host>/
+// Packaged Lightica passes its own prefix so it never shares a daemon with an
+// official Multica app pointed at the same host.
+export function deriveProfileName(targetUrl: string, prefix = "desktop"): string {
   try {
     const url = new URL(targetUrl);
     const host = url.host.replace(/:/g, "-").toLowerCase();
-    return `desktop-${host}`;
+    return `${prefix}-${host}`;
   } catch {
-    return "desktop";
+    return prefix;
   }
 }
 

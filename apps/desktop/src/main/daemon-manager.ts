@@ -60,9 +60,11 @@ import {
 } from "./daemon-auth-probe";
 import { daemonSpawnEnv } from "./daemon-spawn-env";
 import { focusEnvironmentAt, type FocusEnvironmentResult } from "./environment-focus";
+import { LIGHTICA_HOME_DIR, LIGHTICA_PROFILE_PREFIX } from "../shared/lightica";
 
 const POLL_INTERVAL_MS = 5_000;
-const PREFS_PATH = join(homedir(), ".multica", "desktop_prefs.json");
+const PREFS_DIR = join(homedir(), LIGHTICA_HOME_DIR);
+const PREFS_PATH = join(PREFS_DIR, "desktop_prefs.json");
 const LOG_TAIL_RETRY_MS = 2_000;
 const LOG_TAIL_MAX_RETRIES = 5;
 // How long a start may sit in "starting" (with no /health) before we probe the
@@ -317,7 +319,11 @@ async function resolveActiveProfile(): Promise<ActiveProfile | null> {
   const target = targetApiBaseUrl;
   if (!target) return null;
 
-  const name = deriveProfileName(target);
+  // Dev keeps upstream's `desktop-<host>`, which scripts/dev-env.sh manages.
+  const name = deriveProfileName(
+    target,
+    app.isPackaged ? LIGHTICA_PROFILE_PREFIX : undefined,
+  );
   const cfg = await readProfileConfig(name);
 
   if (cfg.server_url !== target) {
@@ -828,8 +834,7 @@ async function loadPrefs(): Promise<DaemonPrefs> {
 }
 
 async function savePrefs(prefs: DaemonPrefs): Promise<void> {
-  const dir = join(homedir(), ".multica");
-  await mkdir(dir, { recursive: true });
+  await mkdir(PREFS_DIR, { recursive: true });
   await writeFile(PREFS_PATH, JSON.stringify(prefs, null, 2), "utf-8");
 }
 

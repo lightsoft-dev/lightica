@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>터미널</title>
+<link rel="stylesheet" href="/lightsoft-term/static/vendor/xterm.css">
+<link rel="stylesheet" href="/lightsoft-term/static/app.css">
+</head>
+<body>
+<header>
+  <div class="title">
+    <strong id="project">터미널</strong>
+    <code id="dir"></code>
+  </div>
+  <div class="meta">
+    <span id="status" class="status">연결 준비 중</span>
+    <button id="reconnect" type="button" hidden>새 터미널 열기</button>
+    <button id="close" type="button" disabled>터미널 종료</button>
+  </div>
+</header>
+<p id="notice" hidden></p>
+<main id="terminal"></main>
+<script src="/lightsoft-term/static/vendor/xterm.js"></script>
+<script src="/lightsoft-term/static/vendor/addon-fit.js"></script>
+<script src="/lightsoft-term/static/app.js"></script>
+</body>
+</html>

@@ -22,13 +22,30 @@ const ctx = vi.hoisted(() => ({
   appHandlers: new Map<string, Handler[]>(),
   appQuit: vi.fn(),
   userDataPath: "",
+  // Upstream's suite exercises the feed; the Lightica block turns it off.
+  lighticaAutoUpdate: true,
 }));
 
+vi.mock("../shared/lightica", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../shared/lightica")>();
+  return {
+    ...actual,
+    get LIGHTICA_AUTO_UPDATE() {
+      return ctx.lighticaAutoUpdate;
+    },
+  };
+});
+
 vi.mock("electron-updater", () => {
+  let channel: string | undefined;
   const autoUpdater = {
     autoDownload: false,
     autoInstallOnAppQuit: false,
-    channel: undefined as string | undefined,
+    get channel() { return channel; },
+    set channel(value: string | undefined) {
+      channel = value;
+      this.allowDowngrade = true;
+    },
     allowDowngrade: false,
     on: vi.fn((event: string, handler: Handler) => {
       const handlers = ctx.handlers.get(event) ?? [];
@@ -68,6 +85,19 @@ import {
   type UpdaterDaemonGate,
 } from "./updater";
 import { updaterPreferencesPath } from "./updater-preferences";
+
+it("disables downgrades after selecting the Windows arm64 channel", async () => {
+  vi.stubGlobal("process", { ...process, platform: "win32", arch: "arm64" });
+  vi.resetModules();
+  try {
+    await import("./updater");
+    expect(autoUpdater.channel).toBe("latest-arm64");
+    expect(autoUpdater.allowDowngrade).toBe(false);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  }
+});
 
 describe("macOS x64 update channel", () => {
   it("does not touch established architecture paths", () => {
@@ -256,6 +286,71 @@ describe("setupAutoUpdater", () => {
     });
   });
 
+  it("returns a safe reason instead of the raw check failure", async () => {
+    const { win, send } = makeWindow();
+    setupAutoUpdater(() => [win]);
+    const error = Object.assign(new Error("private headers and stack"), { code: "ERR_UPDATER_CHANNEL_FILE_NOT_FOUND" });
+    ctx.checkForUpdates.mockRejectedValueOnce(error);
+    await expect(invokeIpc("updater:check")).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+      error: "Unable to check for updates. Please try again later.",
+    });
+    emitUpdater("error", error);
+    expect(send).not.toHaveBeenCalled();
+    await invokeIpc("updater:get-preferences");
+  });
+
+  it("broadcasts a download failure once and exposes a recoverable state", async () => {
+    const { win, send } = makeWindow();
+    setupAutoUpdater(() => [win]);
+    let rejectDownload!: (error: Error) => void;
+    const downloadPromise = new Promise<unknown>((_resolve, reject) => { rejectDownload = reject; });
+    ctx.checkForUpdates.mockImplementationOnce(async () => {
+      emitUpdater("update-available", { version: "0.3.18" });
+      return { updateInfo: { version: "0.3.18" }, isUpdateAvailable: true, downloadPromise };
+    });
+    await invokeIpc("updater:check");
+    const error = Object.assign(new Error("secret download response"), { code: "ECONNRESET" });
+    emitUpdater("error", error);
+    rejectDownload(error);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send.mock.calls.filter(([channel, state]) => channel === "updater:download-state" && state.status === "error")).toEqual([
+      ["updater:download-state", { status: "error", reason: "network" }],
+    ]);
+    await expect(invokeIpc("updater:get-download-state")).resolves.toEqual({ status: "error", reason: "network" });
+    emitUpdater("update-available", { version: "0.3.18" });
+    emitUpdater("update-downloaded", { version: "0.3.18" });
+    await expect(invokeIpc("updater:get-download-state")).resolves.toEqual({ status: "downloaded", version: "0.3.18" });
+  });
+
+  it("handles a rejected download promise even without an updater error event", async () => {
+    const { win, send } = makeWindow();
+    setupAutoUpdater(() => [win]);
+    ctx.checkForUpdates.mockImplementationOnce(async () => {
+      emitUpdater("update-available", { version: "0.3.18" });
+      return {
+        updateInfo: { version: "0.3.18" }, isUpdateAvailable: true,
+        downloadPromise: Promise.reject(new Error("download failed")),
+      };
+    });
+    await invokeIpc("updater:check");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenCalledWith("updater:download-state", { status: "error", reason: "unknown" });
+  });
+
+  it("coalesces concurrent manual checks", async () => {
+    setupAutoUpdater(() => []);
+    let resolve!: (value: { updateInfo: { version: string }; isUpdateAvailable: boolean }) => void;
+    ctx.checkForUpdates.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    const first = invokeIpc("updater:check");
+    const second = invokeIpc("updater:check");
+    expect(ctx.checkForUpdates).toHaveBeenCalledTimes(1);
+    resolve({ updateInfo: { version: "0.3.18" }, isUpdateAvailable: false });
+    await Promise.all([first, second]);
+    await invokeIpc("updater:get-preferences");
+  });
+
   it("skips update progress when the BrowserWindow has already been destroyed", () => {
     setupAutoUpdater(() => [makeDestroyedWindow()]);
 
@@ -289,6 +384,48 @@ describe("setupAutoUpdater", () => {
     expect(() => emitUpdater("download-progress", { percent: 42 })).toThrow(
       "boom",
     );
+  });
+});
+
+describe("Lightica update feed", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx.lighticaAutoUpdate = false;
+    ctx.userDataPath = mkdtempSync(join(tmpdir(), "lightica-updater-test-"));
+    ctx.handlers.clear();
+    ctx.ipcHandlers.clear();
+    ctx.ipcHandle.mockImplementation((channel: string, handler: IpcHandler) => {
+      ctx.ipcHandlers.set(channel, handler);
+    });
+    ctx.checkForUpdates.mockClear();
+  });
+
+  afterEach(() => {
+    ctx.lighticaAutoUpdate = true;
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    rmSync(ctx.userDataPath, { recursive: true, force: true });
+  });
+
+  it("never polls the feed in the background", async () => {
+    setupAutoUpdater(() => []);
+    await invokeIpc("updater:get-preferences");
+    await invokeIpc("updater:set-automatic-updates", true);
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 5_000);
+
+    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it("answers a manual check with the manual-install notice", async () => {
+    setupAutoUpdater(() => []);
+
+    await expect(invokeIpc("updater:check")).resolves.toEqual({
+      ok: false,
+      error: expect.stringContaining("Lightica"),
+      reason: "unavailable",
+    });
+    expect(ctx.checkForUpdates).not.toHaveBeenCalled();
   });
 });
 

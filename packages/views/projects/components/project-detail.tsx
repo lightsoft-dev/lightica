@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { useRegisterCommandBarContext } from "../../search/register-context";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Archive, ArchiveRestore, BellOff, BellRing, Check, ChevronRight, FileQuestion, Link2, PanelRight, Pencil, Pin, PinOff, Trash2 } from "@multica/ui/icons";
+import { Archive, ArchiveRestore, BellOff, BellRing, Check, ChevronRight, FileQuestion, Link2, PanelRight, Pencil, Pin, PinOff, Trash2, Type } from "@multica/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
-import { copyText } from "@multica/ui/lib/clipboard";
+import { copyText, copyTextAndHtml } from "@multica/ui/lib/clipboard";
 import { toast } from "sonner";
+import { isFeatureLockedError } from "@multica/core/billing";
 import type { Project, ProjectStatus, ProjectPriority } from "@multica/core/types";
 import { useAuthStore } from "@multica/core/auth";
 import { canDeleteProject } from "@multica/core/projects/deletion-permissions";
@@ -32,6 +33,7 @@ import { PriorityIcon } from "../../issues/components/priority-icon";
 import { ProjectResourcesSection } from "./project-resources-section";
 import { ProjectStartDatePicker } from "./project-start-date-picker";
 import { ProjectDueDatePicker } from "./project-due-date-picker";
+import { usePaidFeatureErrorMessage } from "../../billing";
 import { ProjectAccessControl } from "./project-access";
 import { ProjectLeadPicker } from "./project-lead-picker";
 import { ProjectWorkflowControl } from "../../workflows/project-workflow-row";
@@ -81,6 +83,7 @@ import {
   AlertDialogTitle,
 } from "@multica/ui/components/ui/alert-dialog";
 import { useT } from "../../i18n";
+import { titleLinkPayload } from "../../common/title-link";
 import { useProjectStatusLabels, useProjectPriorityLabels, useFormatRelativeDate } from "./labels";
 import {
   ArchivedProjectNotice,
@@ -122,7 +125,14 @@ function ProjectWorkflowPropRow({ project, onOpen }: { project: Project; onOpen:
 
 // ProjectDetail
 
-export function ProjectDetail({ projectId }: { projectId: string }) {
+export function ProjectDetail({
+  projectId,
+  menuExtra,
+}: {
+  projectId: string;
+  /** Platform-specific entries appended to the project's header menu. */
+  menuExtra?: ReactNode;
+}) {
   const { t } = useT("projects");
   const statusLabels = useProjectStatusLabels();
   const priorityLabels = useProjectPriorityLabels();
@@ -165,6 +175,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { getActorName } = useActorName();
   const updateProject = useUpdateProject();
+  const paidFeatureError = usePaidFeatureErrorMessage();
   const deleting = deleteProject.isPending;
   const { data: pinnedItems = [] } = useQuery({
     ...pinListOptions(wsId, userId ?? ""),
@@ -258,9 +269,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const handleUpdateField = useCallback(
     (data: Parameters<typeof updateProject.mutate>[0] extends { id: string } & infer R ? R : never) => {
       if (!project) return;
-      updateProject.mutate({ id: project.id, ...data });
+      // Field edits roll back silently; a plan refusal (a lead who would join
+      // a private project) needs saying why.
+      updateProject.mutateAsync({ id: project.id, ...data }).catch((err: unknown) => {
+        if (isFeatureLockedError(err)) toast.error(paidFeatureError(err, ""));
+      });
     },
-    [project, updateProject],
+    [project, updateProject, paidFeatureError],
   );
 
   const handleStatusChange = useCallback(
@@ -561,6 +576,22 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                       {t(($) => $.detail.copy_link)}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => {
+                      const { text, html } = titleLinkPayload(
+                        project.title,
+                        router.getShareableUrl(currentPath(router)),
+                      );
+                      void copyTextAndHtml(text, html).then((ok) => {
+                        if (ok) {
+                          toast.success(t(($) => $.detail.toast_title_link_copied));
+                        } else {
+                          toast.error(t(($) => $.detail.toast_title_link_copy_failed));
+                        }
+                      });
+                    }}>
+                      <Type className="h-3.5 w-3.5" />
+                      {t(($) => $.detail.copy_title_as_link)}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
                       if (isPinned) {
                         deletePinMut.mutate({ itemType: "project", itemId: projectId });
                       } else {
@@ -578,6 +609,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                       {isSubscribed ? t(($) => $.detail.unsubscribe_action) : t(($) => $.detail.subscribe_action)}
                     </DropdownMenuItem>
                     <ProjectWorkflowMenuItem project={project} onOpen={() => setWorkflowSheetOpen(true)} />
+                    {menuExtra}
                     <DropdownMenuSeparator />
                     {archived ? (
                       <DropdownMenuItem onClick={() => restore(project)}>

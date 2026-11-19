@@ -1,8 +1,10 @@
 import { app } from "electron";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { LIGHTICA_DEFAULT_API_URL, LIGHTICA_HOME_DIR } from "../shared/lightica";
 import {
-  DEFAULT_RUNTIME_CONFIG,
+  deriveAppUrl,
+  deriveWsUrl,
   parseRuntimeConfig,
   runtimeConfigFromDevEnv,
   type RuntimeConfig,
@@ -29,7 +31,7 @@ export async function loadRuntimeConfig(options: {
     return { ok: true, config: parseRuntimeConfig(raw) };
   } catch (err) {
     if (isMissingFileError(err)) {
-      return { ok: true, config: { ...DEFAULT_RUNTIME_CONFIG } };
+      return { ok: true, config: lighticaDefaultRuntimeConfig() };
     }
     return {
       ok: false,
@@ -41,7 +43,17 @@ export async function loadRuntimeConfig(options: {
 }
 
 export function desktopConfigPath(): string {
-  return join(app.getPath("home"), ".multica", "desktop.json");
+  return join(app.getPath("home"), LIGHTICA_HOME_DIR, "desktop.json");
+}
+
+// Lightica talks to the team server unless desktop.json says otherwise.
+function lighticaDefaultRuntimeConfig(): RuntimeConfig {
+  return {
+    schemaVersion: 1,
+    apiUrl: LIGHTICA_DEFAULT_API_URL,
+    wsUrl: deriveWsUrl(LIGHTICA_DEFAULT_API_URL),
+    appUrl: deriveAppUrl(LIGHTICA_DEFAULT_API_URL),
+  };
 }
 
 function isMissingFileError(err: unknown): boolean {

@@ -5,7 +5,8 @@
 #                   after a verified pg_dump. Rolls the images back if the new
 #                   release does not come up healthy (the DB is NOT restored
 #                   automatically — the backup path is reported instead).
-#   2. Fork mirror  fast-forward lightsoft-dev/multica `main` to upstream `main`.
+#   2. Fork mirror  fast-forward lightsoft-dev/multica `main` to upstream `main`,
+#                   and push upstream's release tags (v*) the fork does not have yet.
 #   3. Team branch  merge the release production runs into `lightsoft/dev`, so the
 #                   team client is never ahead of the production API.
 #   4. Team client  rebuild/restart compose project `multica-team-web` when
@@ -188,6 +189,28 @@ mirror_fork_main() {
   cd "$OPS_HOME"
 }
 
+# Release tags let a fork-only checkout merge the release production runs
+# (`git merge v0.11.0`) without adding the upstream remote. Only tags the fork
+# lacks are pushed; a tag already on the fork is never moved or forced.
+mirror_release_tags() {
+  local missing t tags=() remote
+  cd "$REPO_DIR" || return
+  if ! remote="$(git ls-remote --tags --refs origin 'refs/tags/v*')"; then
+    failed "fork tags: could not list the fork's tags"; cd "$OPS_HOME"; return
+  fi
+  missing="$(comm -23 <(git tag -l 'v*' | sort) <(printf '%s\n' "$remote" | sed -n 's#.*refs/tags/##p' | sort))"
+  while IFS= read -r t; do [ -n "$t" ] && tags+=("refs/tags/$t"); done <<<"$missing"
+  if [ ${#tags[@]} -eq 0 ]; then log "fork tags: up to date"; cd "$OPS_HOME"; return; fi
+  if [ "$DRY_RUN" = 1 ]; then
+    log "dry-run: would push ${#tags[@]} release tag(s) to the fork"
+  elif git push -q origin "${tags[@]}"; then
+    changed "포크에 upstream 릴리스 태그 ${#tags[@]}개 push (최신 $(printf '%s\n' "$missing" | sort -V | tail -1))"
+  else
+    failed "fork tags: push failed"
+  fi
+  cd "$OPS_HOME"
+}
+
 # ----------------------------------------------------------- team branch ----
 sync_team_branch() {
   local prod
@@ -266,6 +289,7 @@ report() {
 if prepare_repo; then
   update_production
   mirror_fork_main
+  mirror_release_tags
   sync_team_branch
   update_team_client
 else

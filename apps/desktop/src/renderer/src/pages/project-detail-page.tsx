@@ -5,6 +5,7 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import { projectDetailOptions } from "@multica/core/projects/queries";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { IssueViewUrlSync } from "@/platform/issue-view-tabs";
+import { TerminalMenuItem } from "@/features/lightsoft/terminal-menu-item";
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +19,7 @@ export function ProjectDetailPage() {
   if (!id) return null;
   return (
     <IssueViewUrlSync scope={{ scope_type: "project", scope_id: id }}>
-      <ProjectDetail projectId={id} />
+      <ProjectDetail projectId={id} menuExtra={<TerminalMenuItem projectId={id} />} />
     </IssueViewUrlSync>
   );
 }

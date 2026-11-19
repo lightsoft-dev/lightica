@@ -1211,6 +1211,32 @@ describe("useChatController.handleSend — compose target tracking", () => {
     };
   }
 
+  it("keeps the active retry and stores guidance under its root input owner", async () => {
+    h.pendingTask = { task_id: "running-task", status: "running", supports_queue: true };
+    vi.mocked(api.sendChatMessage).mockResolvedValue({
+      message_id: "guidance", task_id: "running-task", message_task_id: "root-task", steered: true,
+      created_at: "2026-01-01T00:00:00Z", message_created_at: "2026-01-01T00:01:00Z",
+    });
+    h.queryClient.setQueryData.mockClear();
+    const { send, commitInput } = sendFrom("sA");
+    await send();
+    expect(h.queryClient.setQueryData.mock.calls.filter(([key]) =>
+      JSON.stringify(key) === JSON.stringify(chatKeys.pendingTask("sA"))))
+      .toHaveLength(0);
+    const cacheWrite = h.queryClient.setQueryData.mock.calls.find(([key]) =>
+      JSON.stringify(key) === JSON.stringify(chatKeys.messages("sA")));
+    expect(cacheWrite).toBeDefined();
+    expect(cacheWrite![1](undefined)).toEqual([
+      expect.objectContaining({
+        id: "guidance",
+        task_id: "root-task",
+        created_at: "2026-01-01T00:01:00Z",
+      }),
+    ]);
+    expect(commitInput).toHaveBeenCalled();
+    expect(api.cancelTaskById).not.toHaveBeenCalled();
+  });
+
   it("scrubs the composer after a new chat's first send", async () => {
     const { commitInput, send } = sendFrom(null);
     await send();
@@ -1381,7 +1407,7 @@ describe("useChatController.handleSend — chat model selection", () => {
 
     await sendFrom("sA");
 
-    expect(api.sendChatMessage).toHaveBeenCalledWith("sA", "hello", undefined, opus);
+    expect(api.sendChatMessage).toHaveBeenCalledWith("sA", "hello", undefined, undefined, opus);
     expect(h.queryClient.setQueryData).toHaveBeenCalledWith(
       chatModelSelectionKeys.session("ws-1", "sA"),
       opus,
@@ -1394,7 +1420,7 @@ describe("useChatController.handleSend — chat model selection", () => {
 
     await sendFrom(null);
 
-    expect(api.sendChatMessage).toHaveBeenCalledWith("new-session", "hello", undefined, opus);
+    expect(api.sendChatMessage).toHaveBeenCalledWith("new-session", "hello", undefined, undefined, opus);
     expect(h.queryClient.setQueryData).toHaveBeenCalledWith(
       chatModelSelectionKeys.session("ws-1", "new-session"),
       opus,
@@ -1416,7 +1442,7 @@ describe("useChatController.handleSend — chat model selection", () => {
   it("omits the field without a draft so the run follows the session", async () => {
     await sendFrom("sA");
 
-    expect(api.sendChatMessage).toHaveBeenCalledWith("sA", "hello", undefined, undefined);
+    expect(api.sendChatMessage).toHaveBeenCalledWith("sA", "hello", undefined);
     expect(h.queryClient.setQueryData).not.toHaveBeenCalledWith(
       chatModelSelectionKeys.session("ws-1", "sA"),
       expect.anything(),

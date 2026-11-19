@@ -30,6 +30,7 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
    - 로그인 방법: One-time PIN(기본) 또는 Google.
    - 세션 길이: 7일~1개월 정도로 넉넉히. 세션이 끝나면 열어 둔 탭은 새로고침해야 합니다.
    - 만든 뒤 앱의 **Application Audience (AUD) Tag**와 Zero Trust **팀 도메인**(`<팀>.cloudflareaccess.com`)을 적어 둡니다.
+   - 로그인 화면을 Lightica로 꾸밉니다. 아래 "Access 로그인 화면"을 보세요.
 2. **운영 backend에 설정을 넣습니다.** 운영 변경이므로 사용자 확인 후에 합니다.
    - `~/.multica/server/docker-compose.selfhost.yml`의 backend `environment:`는 목록에 있는 변수만 넘기므로 두 줄을 추가합니다. 일일 자동 업데이트는 이 파일을 다시 쓰지 않습니다.
      ```yaml
@@ -43,6 +44,20 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
    - 첫 실행에서 이름 있는 터널 `lightica`와 DNS 레코드를 만들고, `~/.cloudflared/lightica.yml`과 launchd `dev.lightsoft.lightica-tunnel`을 둡니다. 기존 songtest·crawler 터널과는 별도 프로세스입니다.
    - 실행이 끝나면 바깥에서 `https://<주소>/health`를 불러 Access가 막는지 확인합니다. 200이 오면, 즉 Access 없이 origin이 열려 있으면 터널을 바로 내리고 실패합니다.
 5. **확인**: tailnet을 끈 기기(휴대폰 LTE 등)에서 주소를 엽니다. Access 로그인 → 자동으로 Multica 로그인 → 이슈 목록, 실시간 갱신, 첨부 업로드를 확인합니다.
+
+## Access 로그인 화면
+
+tailnet 밖 사용자가 처음 보는 화면은 Cloudflare가 띄우는 Access 로그인 화면(`<팀>.cloudflareaccess.com`)입니다. Access를 통과하면 Lightica 로그인 화면을 거치지 않고 바로 자동 로그인됩니다. Lightica 로그인 화면은 tailnet으로 접속할 때, 그리고 초대되지 않은 이메일이거나 직접 로그아웃한 뒤에만 보입니다. 그래서 Lightica처럼 보여야 하는 쪽은 Access 화면입니다.
+
+- **Free 플랜에서 꾸미기**: Zero Trust → Reusable components → Custom pages → Access login page → Manage에서 바꿉니다.
+  - 이름: `Lightica`
+  - 로고 URL: `https://raw.githubusercontent.com/lightsoft-dev/multica/lightsoft/dev/lightsoft/access/lightica-login-logo.png`. 로고는 로그인 전에 불러야 하므로 Access 뒤의 Lightica 주소에 두면 안 됩니다. 공개 레포의 이 파일을 씁니다.
+  - 배경색: `#fafafa`(Lightica 라이트 배경)
+  - 머리글·바닥글 문구
+
+  이 설정은 그 계정의 모든 Access 앱에 함께 적용됩니다(songtest 등에도 같은 화면이 나옵니다).
+- **화면을 통째로 바꾸기**(HTML·Liquid 템플릿): Pay-as-you-go 이상 플랜에서만 됩니다.
+- **Cloudflare 화면 없이 바로 Google로**: Access 앱의 로그인 방법을 Google(또는 Google Workspace) 하나만 두고 **Instant Auth**(API `auto_redirect_to_identity`)를 켭니다. 그러면 주소를 열 때 Google 계정 선택 → Lightica 순서로 가고, Cloudflare 화면은 나오지 않습니다. Google OAuth 클라이언트를 Cloudflare에 등록해야 합니다. 이메일 OTP를 쓰면 이메일을 입력하는 Cloudflare 화면이 남습니다.
 
 ## 끄기
 

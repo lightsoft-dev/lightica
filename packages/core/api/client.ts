@@ -293,6 +293,15 @@ import { type Logger, noopLogger } from "../logger";
 import { createRequestId, createSafeId } from "../utils";
 import { getCurrentSlug } from "../platform/workspace-storage";
 import { parseWithFallback } from "./schema";
+import {
+  ChatSessionModelSelectionResponseSchema,
+  EMPTY_CHAT_SESSION_MODEL_SELECTION,
+  LightsoftCapabilitiesSchema,
+  NO_LIGHTSOFT_CAPABILITIES,
+  type ChatModelSelection,
+  type ChatSessionModelSelectionResponse,
+  type LightsoftCapabilities,
+} from "./lightsoft-chat-model-selection";
 import { getApiRequestObserver } from "./request-observer";
 import {
   RuntimeProfileSchema,
@@ -4263,14 +4272,20 @@ export class ApiClient {
     content: string,
     attachmentIds?: string[],
     options?: { queue?: boolean },
+    // Lightsoft (LIGH-104): trailing so upstream call shapes stay unchanged.
+    modelSelection?: ChatModelSelection,
   ): Promise<SendChatMessageResponse> {
     const body: {
       content: string;
       steer: boolean;
       attachment_ids?: string[];
+      model_selection?: ChatModelSelection;
     } = { content, steer: options?.queue !== true };
     if (attachmentIds && attachmentIds.length > 0) {
       body.attachment_ids = attachmentIds;
+    }
+    if (modelSelection) {
+      body.model_selection = modelSelection;
     }
     const raw = await this.fetch<unknown>(`/api/chat/sessions/${sessionId}/messages`, {
       method: "POST",
@@ -4284,6 +4299,31 @@ export class ApiClient {
     );
     if (!response) throw new Error("invalid send chat message response");
     return response;
+  }
+
+  async getLightsoftCapabilities(): Promise<LightsoftCapabilities> {
+    let raw: unknown;
+    try {
+      raw = await this.fetch<unknown>("/api/lightsoft/capabilities");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return NO_LIGHTSOFT_CAPABILITIES;
+      throw err;
+    }
+    return parseWithFallback(raw, LightsoftCapabilitiesSchema, NO_LIGHTSOFT_CAPABILITIES, {
+      endpoint: "GET /api/lightsoft/capabilities",
+    });
+  }
+
+  async getChatSessionModelSelection(
+    sessionId: string,
+  ): Promise<ChatSessionModelSelectionResponse> {
+    const raw = await this.fetch<unknown>(`/api/chat/sessions/${sessionId}/model-selection`);
+    return parseWithFallback(
+      raw,
+      ChatSessionModelSelectionResponseSchema,
+      EMPTY_CHAT_SESSION_MODEL_SELECTION,
+      { endpoint: "GET /api/chat/sessions/:id/model-selection" },
+    );
   }
 
   async startMikaOnboarding(

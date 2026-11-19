@@ -36,6 +36,7 @@ import { NoAgentBanner } from "./no-agent-banner";
 import { ArchivedAgentBanner } from "./archived-agent-banner";
 import { AgentAccessRevokedBanner } from "./agent-access-revoked-banner";
 import { RuntimeRequiredBanner } from "./runtime-required-banner";
+import { ChatModelSelectionPicker } from "./chat-model-selection-picker";
 import {
   pendingChatTasksOptions,
   chatKeys,
@@ -446,12 +447,15 @@ export function ChatWindow() {
         projectContextUnsupported={c.projectContextUnsupported}
         isProjectUpdating={c.isProjectUpdating}
         leftAdornment={
-          <AgentDropdown
-            agents={c.availableAgents}
-            activeAgent={activeAgent}
-            userId={c.user?.id}
-            onSelect={c.handleSelectAgent}
-          />
+          <>
+            <AgentDropdown
+              agents={c.availableAgents}
+              activeAgent={activeAgent}
+              userId={c.user?.id}
+              onSelect={c.handleSelectAgent}
+            />
+            <ChatModelSelectionPicker agent={activeAgent} sessionId={c.activeSessionId} />
+          </>
         }
         contextItems={contextItems}
         pageContext={pageContext}

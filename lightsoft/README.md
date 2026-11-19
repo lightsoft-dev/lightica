@@ -52,6 +52,16 @@ make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
 - 이 설정은 로컬 전용 `.env`(git 제외)에 들어 있습니다: `REMOTE_API_URL=http://127.0.0.1:8080`, `FRONTEND_PORT=13100`.
 - `pnpm dev:web`만 실행하면 3000번으로 떠서 운영 웹과 겹칩니다. 반드시 `make web-dev`로 실행하세요.
 
+## 팀 기능
+
+### 채팅 모델·effort 선택 (LIGH-104)
+
+- 채팅 입력창에서 그 채팅에만 적용할 모델과 effort를 고릅니다. 에이전트 기본 설정은 바뀌지 않습니다. 대상 런타임은 Claude Code, Codex, pi입니다.
+- 고른 값은 다음 메시지를 보낼 때 그 태스크의 `context`(`lightsoft_model_selection` 키)에 기록됩니다. 이후 메시지는 같은 세션의 마지막 값을 따릅니다. DB 스키마는 바꾸지 않습니다. 데몬도 바꾸지 않습니다. 서버가 claim 응답의 `model`/`thinking_level`을 이 값으로 바꿔 줍니다.
+- **포크 backend가 있어야 동작합니다.** 운영 backend가 upstream 이미지면 `GET /api/lightsoft/capabilities`가 404를 돌려주고, 선택기가 숨겨집니다.
+- 포크 코드는 새 파일에 모았습니다: `server/internal/{handler,service}/lightsoft_chat_model.go`, `server/pkg/db/queries/lightsoft_chat_model.sql`, `packages/core/chat/model-selection.ts`, `packages/core/api/lightsoft-chat-model-selection.ts`, `packages/views/chat/components/chat-model-selection-picker.tsx`.
+- upstream 파일에는 연결 코드만 몇 줄 넣었습니다: `chat.go`, `task.go`, `daemon.go`, `router.go`, `client.ts`, `use-chat-controller.ts`, `chat-page.tsx`, `chat-window.tsx`. 릴리스 merge에서 충돌이 나면 이 지점부터 확인하세요.
+
 ## ⚠️ 주의
 
 - **버전 맞춤**: 운영 backend와 이 브랜치는 같은 릴리스(현재 v0.10.0)를 기준으로 합니다. 운영 버전은 `~/.multica/server/.env`의 `MULTICA_IMAGE_TAG`에 고정돼 있고, 자동 작업이 함께 올립니다.

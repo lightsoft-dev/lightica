@@ -24,6 +24,7 @@ import { useNavigation } from "../navigation";
 import { useT } from "../i18n";
 import { ChatMessageList, ChatMessageSkeleton } from "./components/chat-message-list";
 import { ChatInput } from "./components/chat-input";
+import { ChatModelSelectionPicker } from "./components/chat-model-selection-picker";
 import { ChatQueue } from "./components/chat-queue";
 import { ChatWakeupStrip, useChatWakeups } from "./components/chat-wakeups";
 import { ChatThreadList } from "./components/chat-thread-list";
@@ -430,6 +431,9 @@ export function ChatPage() {
         isProjectUpdating={c.isProjectUpdating}
         focusRequest={c.focusInputRequest}
         annotations={annotations}
+        leftAdornment={
+          <ChatModelSelectionPicker agent={c.activeAgent} sessionId={c.activeSessionId} />
+        }
       />
     </div>
   );

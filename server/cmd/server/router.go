@@ -2626,6 +2626,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			// Workspace-wide 30-day run counts per agent for the Agents-list RUNS column.
 			r.Get("/api/agent-run-counts", h.GetWorkspaceAgentRunCounts)
 
+			// Lightsoft fork: lets the team client hide fork-only UI on an upstream backend.
+			r.Get("/api/lightsoft/capabilities", h.GetLightsoftCapabilities)
+
 			r.Route("/api/chat/sessions", func(r chi.Router) {
 				r.Post("/", h.CreateChatSession)
 				r.Get("/", h.ListChatSessions)
@@ -2636,6 +2639,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Patch("/archive", h.SetChatSessionArchived)
 					r.Delete("/", h.DeleteChatSession)
 					r.Post("/messages", h.SendChatMessage)
+					r.Get("/model-selection", h.GetChatSessionModelSelection)
 					r.Post("/onboarding", h.StartMikaOnboarding)
 					// Explicit "refresh" of a turn's quick actions: re-runs the
 					// daemon suggestion pass for the latest assistant reply (MUL-5149).

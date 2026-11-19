@@ -3134,6 +3134,7 @@ func (h *Handler) buildClaimedTaskResponse(r *http.Request, task *db.AgentTaskQu
 		RuntimeConfig:         runtimeConfig,
 		DisabledRuntimeSkills: disabledRuntimeSkillsFor(agent.DisabledRuntimeSkills, runtimeID, runtime.Provider),
 	}
+	h.applyChatModelSelection(r.Context(), task, runtime.Provider, resp.Agent)
 	// Snapshot the agent's persistent OpenClaw model override for this claim.
 	// It applies to every claim until changed or cleared; later edits do not
 	// affect payloads already delivered to the daemon.

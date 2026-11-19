@@ -2534,6 +2534,9 @@ func (s *TaskService) sendDirectChatMessage(
 			}
 		}
 		out.Task = task
+		if err := recordChatModelSelection(ctx, qtx, task.ID); err != nil {
+			return err
+		}
 
 		// Adopt the onboarding kickoff, if this session still has an unowned one.
 		// It is written by OpenMikaOnboardingChat with no task, so this is the

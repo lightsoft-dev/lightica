@@ -843,6 +843,8 @@ type SendChatMessageRequest struct {
 	SubmissionID  *string  `json:"submission_id"`
 	Content       string   `json:"content"`
 	AttachmentIDs []string `json:"attachment_ids"`
+	// Lightsoft fork (LIGH-104): see lightsoft_chat_model.go.
+	ModelSelection *service.ChatModelSelection `json:"model_selection,omitempty"`
 }
 
 type SendChatMessageResponse = service.ChatSubmissionResponse
@@ -961,6 +963,9 @@ func (h *Handler) SendChatMessage(w http.ResponseWriter, r *http.Request) {
 	actorType, actorID := h.resolveActor(r, userID, workspaceID)
 	if !h.canInvokeAgent(r.Context(), agent, actorType, actorID, h.invokeOriginatorFromRequest(r, actorType, actorID), workspaceID) {
 		h.writeDispatchBlocked(w, http.StatusForbidden, ReasonInvocationNotAllowed)
+		return
+	}
+	if r, ok = h.withChatModelSelection(w, r, agent, req.ModelSelection); !ok {
 		return
 	}
 

@@ -12,6 +12,7 @@ import {
   parsePackageArgs,
   resolveBuildMatrix,
   stripLeadingSeparator,
+  VERSION_OVERRIDE_ENV,
 } from "./package.mjs";
 
 describe("normalizeGitVersion", () => {
@@ -147,6 +148,21 @@ describe("deriveVersion (real git describe)", () => {
   it("falls back to 0.0.0-g<hash> when no semver tag is reachable", () => {
     const { dir } = initRepo();
     expect(deriveVersion(dir)).toMatch(/^0\.0\.0-g[0-9a-f]+$/);
+  });
+
+  // Lightsoft release builds (lightsoft/version.sh) name the version.
+  it("prefers the release version override over git describe", () => {
+    const { dir, run } = initRepo();
+    run("tag", "v1.4.2");
+    expect(deriveVersion(dir, { [VERSION_OVERRIDE_ENV]: "1.4.2-20261119.2" })).toBe("1.4.2-20261119.2");
+    expect(deriveVersion(dir, { [VERSION_OVERRIDE_ENV]: " " })).toBe("1.4.2");
+  });
+
+  it("rejects an override electron-updater could not parse", () => {
+    const { dir } = initRepo();
+    for (const bad of ["0.11.0-", "v0.11.0", "0.11", "0.11.0-2026 1119"]) {
+      expect(() => deriveVersion(dir, { [VERSION_OVERRIDE_ENV]: bad })).toThrow(VERSION_OVERRIDE_ENV);
+    }
   });
 });
 

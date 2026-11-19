@@ -151,10 +151,24 @@ export const DESCRIBE_ARGS = [
   "--dirty",
 ];
 
+// Lightsoft fork (LIGH-191): a release build names its own version
+// (lightsoft/version.sh, e.g. `0.11.0-20261119`) instead of `git describe`.
+// bundle-cli.mjs calls deriveVersion too, so the bundled CLI reports it as well.
+export const VERSION_OVERRIDE_ENV = "DESKTOP_BUILD_VERSION";
+const SEMVER_RE = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
 // Exported (with an optional cwd) so tests can exercise the real describe
 // invocation against a throwaway repo, not just normalizeGitVersion in
 // isolation — the gap that let the Windows quoting regression through CI.
-export function deriveVersion(cwd) {
+export function deriveVersion(cwd, env = process.env) {
+  const override = env[VERSION_OVERRIDE_ENV]?.trim();
+  if (override) {
+    // electron-updater refuses to start on a version that is not semver.
+    if (!SEMVER_RE.test(override)) {
+      throw new Error(`[package] ${VERSION_OVERRIDE_ENV}=${override} is not a semver version`);
+    }
+    return override;
+  }
   return normalizeGitVersion(git(DESCRIBE_ARGS, cwd));
 }
 
@@ -409,7 +423,8 @@ function main() {
   // Step 2: derive the version that should be written into the app.
   const version = deriveVersion();
   if (version) {
-    console.log(`[package] Desktop version → ${version} (from git describe)`);
+    const source = process.env[VERSION_OVERRIDE_ENV] ? VERSION_OVERRIDE_ENV : "git describe";
+    console.log(`[package] Desktop version → ${version} (from ${source})`);
   } else {
     console.warn(
       "[package] could not derive version from git; falling back to package.json",

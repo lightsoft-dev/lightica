@@ -17,6 +17,7 @@ import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { DashboardPage } from "@multica/views/dashboard";
 import { SecretsPage } from "@multica/views/lightsoft/secrets";
+import { SubscriptionLimitsPage } from "@multica/views/lightsoft/usage";
 import { AutopilotsPage } from "@multica/views/autopilots/components";
 import { MyIssuesPage } from "@multica/views/my-issues";
 import { SkillsPage } from "@multica/views/skills";
@@ -265,6 +266,12 @@ export const appRoutes: RouteObject[] = [
             path: "usage",
             element: <DashboardPage />,
             handle: { title: "Usage" },
+          },
+          // Lightica: subscription limits (LIGH-113, lightsoft/usage).
+          {
+            path: "limits",
+            element: <SubscriptionLimitsPage />,
+            handle: { title: "구독 한도" },
           },
           // Lightica: team secrets (LIGH-112, lightsoft/secrets).
           {

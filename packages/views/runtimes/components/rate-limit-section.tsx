@@ -220,7 +220,8 @@ function Meter({
   );
 }
 
-function WindowRow({ view }: { view: RateLimitWindowView }) {
+// Exported for the Lightsoft subscription-limits page (packages/views/lightsoft/usage).
+export function WindowRow({ view }: { view: RateLimitWindowView }) {
   const text = useRateLimitText();
   const label = text.windowLabel(view.window);
   const verdict = text.verdict(view);

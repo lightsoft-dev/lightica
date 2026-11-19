@@ -39,6 +39,8 @@ const SPACE_BY_SEGMENT: Record<string, AppSpaceId> = {
   usage: "team",
   // Lightsoft team client: secrets page (apps/web/features/lightsoft/secrets).
   secrets: "team",
+  // Lightsoft team client: subscription limits (packages/views/lightsoft/usage).
+  limits: "team",
   chat: "chat",
   autopilots: "autopilots",
   settings: "settings",

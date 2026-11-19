@@ -12,6 +12,7 @@
     ".": "./index.ts",
     "./markdown": "./markdown/index.ts",
     "./lightsoft/secrets": "./lightsoft/secrets/index.ts",
+    "./lightsoft/usage": "./lightsoft/usage/index.ts",
     "./types": "./types/index.ts",
     "./types/*": "./types/*.ts",
     "./attachments": "./attachments/index.ts",

@@ -46,6 +46,18 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 step "preflight"
 cd "$root"
 [ -d "$feed_dir" ] || die "no feed folder $feed_dir (install it: bash lightsoft/desktop/feed/install.sh)"
+# One release at a time: two runs pick the same version while the feed does not
+# have it yet, and the later one replaces the earlier one's files and checksums.
+# lightica-feed does not serve dot files.
+lock="$feed_dir/.release.pid"
+if ! (set -o noclobber; echo $$ > "$lock") 2>/dev/null; then
+  holder="$(cat "$lock" 2>/dev/null || true)"
+  if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then
+    die "another release.sh (PID $holder) is publishing to $feed_dir"
+  fi
+  echo $$ > "$lock" # left behind by a run that was killed
+fi
+trap 'rm -f "$lock"' EXIT
 # The release records its commit, so the build must be exactly that commit.
 [ -z "$(git status --porcelain --untracked-files=no)" ] || die "the checkout has uncommitted changes"
 if [ "$update_issue" = 1 ]; then

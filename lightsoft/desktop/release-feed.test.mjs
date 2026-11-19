@@ -1,6 +1,7 @@
 // Tests for release-feed.mjs: node --test lightsoft/desktop/release-feed.test.mjs
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +14,7 @@ import {
   readReleases,
   renderIssueSection,
   replaceIssueSection,
+  withFileDigests,
   withSigningTeam,
 } from "./release-feed.mjs";
 
@@ -35,7 +37,8 @@ function fakeDist(version, arch = "arm64") {
   const yml = arch === "arm64" ? "latest-mac.yml" : "latest-x64-mac.yml";
   writeFileSync(
     join(dist, yml),
-    `version: ${version}\nfiles:\n  - url: ${stem}.zip\n  - url: ${stem}.dmg\npath: ${stem}.zip\nreleaseDate: '2026-11-19T06:00:00.000Z'\nminimumSystemVersion: 22.0.0\n`,
+    // The digests are stale on purpose: build.sh changes the dmg after electron-builder.
+    `version: ${version}\nfiles:\n  - url: ${stem}.zip\n    sha512: stale\n    size: 1\n  - url: ${stem}.dmg\n    sha512: stale\n    size: 1\npath: ${stem}.zip\nsha512: stale\nreleaseDate: '2026-11-19T06:00:00.000Z'\nminimumSystemVersion: 22.0.0\n`,
   );
   return dist;
 }
@@ -63,6 +66,13 @@ describe("publish", () => {
     const [record] = readReleases(feed);
     assert.equal(record.files.find((f) => f.name.endsWith(".dmg")).sha256.length, 64);
     assert.match(readFileSync(join(feed, "index.html"), "utf-8"), /lightica-0\.11\.0-20261119-mac-arm64\.dmg/);
+    // The metadata describes the files as published.
+    for (const ext of ["dmg", "zip"]) {
+      const name = `lightica-0.11.0-20261119-mac-arm64.${ext}`;
+      const sha512 = createHash("sha512").update(readFileSync(join(feed, name))).digest("base64");
+      assert.match(yml, new RegExp(`- url: ${name.replaceAll(".", "\\.")}\n    sha512: ${sha512.replace(/[+/]/g, "\\$&")}\n    size: ${name.length}\n`));
+    }
+    assert.doesNotMatch(yml, /stale/);
     // Nothing staged is left behind.
     assert.deepEqual(readdirSync(feed).filter((name) => name.startsWith(".")), []);
   });
@@ -99,6 +109,17 @@ describe("publish", () => {
     publish(feed, { ...release("0.11.0-20261119"), dist: fakeDist("0.11.0-20261119", "x64"), arch: "x64" });
     assert.equal(existsSync(join(feed, "latest-x64-mac.yml")), true);
     assert.equal(existsSync(join(feed, "latest-mac.yml")), false);
+  });
+});
+
+describe("withFileDigests", () => {
+  it("rewrites the listed files it has digests for and leaves the rest", () => {
+    const yml = "version: 1.0.0-1\nfiles:\n  - url: a.zip\n    sha512: old-a\n    size: 1\n  - url: a.dmg\n    sha512: old-dmg\n    size: 2\npath: a.zip\nsha512: old-a\nreleaseDate: '2026-11-19T06:00:00.000Z'\n";
+    assert.equal(
+      withFileDigests(yml, { "a.dmg": { sha512: "new-dmg", size: 3 } }),
+      "version: 1.0.0-1\nfiles:\n  - url: a.zip\n    sha512: old-a\n    size: 1\n  - url: a.dmg\n    sha512: new-dmg\n    size: 3\npath: a.zip\nsha512: old-a\nreleaseDate: '2026-11-19T06:00:00.000Z'\n",
+    );
+    assert.match(withFileDigests(yml, { "a.zip": { sha512: "new-a", size: 4 } }), /^path: a\.zip\nsha512: new-a$/m);
   });
 });
 

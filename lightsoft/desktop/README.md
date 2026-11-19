@@ -104,6 +104,8 @@ curl -fsS https://mac-studio.taile83671.ts.net:3444/lightica/health
 
 ### 게시
 
+매일 05:00 자동 작업이 게시합니다([자동 게시](#자동-게시-매일-0500)). 바로 게시해야 할 때는 손으로 실행합니다.
+
 ```bash
 cd <lightsoft/dev 체크아웃> && git pull       # 커밋되지 않은 변경이 있으면 멈춥니다
 lightsoft/desktop/release.sh                   # Apple silicon
@@ -129,6 +131,7 @@ DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Int
 
 - **자동 설치**: 실행 중인 앱과 새 빌드가 **같은 Developer ID 팀**으로 서명돼 있으면 zip을 받아 두고 "Update ready → Restart now"를 띄웁니다. 앱을 종료할 때도 설치됩니다. Squirrel.Mac은 같은 팀 서명이 아니면 설치를 거부하므로, 앱이 자기 서명(`codesign`)과 `latest-mac.yml`의 `lighticaSigningTeam`을 먼저 비교합니다(`apps/desktop/src/main/lightica-update.ts`).
 - **다운로드 안내**: 그 밖의 경우(ad-hoc 빌드, 다른 팀으로 서명된 빌드)는 "Lightica vX — 다운로드" 알림만 띄웁니다. 다운로드를 누르면 브라우저로 dmg를 엽니다.
+- **macOS 알림**: 두 경우 모두 Lightica 창을 보고 있지 않으면 시스템 알림도 띄웁니다. 자동 설치는 "Lightica 업데이트 준비됨", 다운로드 안내는 "Lightica vX"입니다. 버전마다 한 번만 띄웁니다. 알림을 누르면 Lightica 창이 앞으로 오고 배너가 보입니다. 창을 닫아 둔 상태였으면 새 창을 엽니다. macOS 설정 → 알림에서 Lightica를 끄면 배너만 남습니다. 이 알림은 LIGH-257이 들어간 빌드부터 나옵니다. 그 전 빌드는 배너만 띄웁니다.
 - 업데이트 다운로드 캐시는 `~/Library/Caches/lightica-updater`입니다(`extraMetadata.name: lightica`). 공식 Multica 앱의 캐시와 겹치지 않습니다.
 - 이 기능은 이 버전 체계가 들어간 빌드부터 동작합니다. 그 전 빌드(`0.10.0-…`, `0.11.0-26-g…`)는 업데이트 확인이 막혀 있으니 한 번은 손으로 설치합니다.
 
@@ -143,7 +146,7 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 | 데몬 자동 업데이트 | GitHub 최신 CLI로 스스로 교체 | 데스크톱이 띄운 데몬(`MULTICA_LAUNCHED_BY=desktop`)은 건너뜁니다(upstream `auto_update.go`). |
 | 런타임 화면의 "업데이트" | 서버가 데몬에 upstream 버전 설치를 보냅니다 | 데스크톱이 띄운 데몬은 거부하고 실패로 보고합니다(upstream `handleUpdate`, 포크 테스트 `server/internal/daemon/lightsoft_desktop_update_test.go`). |
 
-- 일일 05:00 작업이 upstream 릴리스를 `lightsoft/dev`에 merge해도, 팀원 앱은 사람이 `release.sh`로 게시한 빌드만 받습니다.
+- 일일 05:00 작업이 upstream 릴리스를 `lightsoft/dev`에 merge해도, 팀원 앱은 팀 피드에 게시된 빌드만 받습니다([자동 게시](#자동-게시-매일-0500)).
 - upstream merge가 충돌하면 이 표의 파일에서 Lightica 쪽을 유지합니다.
 
 ### 팀원 업데이트 방법
@@ -152,11 +155,16 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 - "다운로드" 알림이면: dmg를 받아 열고, Lightica를 종료한 뒤 Applications의 Lightica를 덮어씁니다. 로그인과 설정은 그대로 남습니다.
 - 직접 받으려면 릴리스 페이지(`https://mac-studio.taile83671.ts.net:3444/lightica/`)를 엽니다.
 
-## 일일 업데이트 후 다시 빌드
+## 자동 게시 (매일 05:00)
 
-매일 05:00 자동 작업이 운영과 같은 upstream 릴리스를 `lightsoft/dev`에 merge합니다(`lightsoft/ops/README.md`). Lightica는 자동으로 다시 빌드되지 않습니다. 새 릴리스가 merge되면 사람이 `lightsoft/desktop/release.sh`로 게시하고, 팀원의 앱이 그 버전을 알려 줍니다.
+매일 05:00 자동 작업(`lightsoft/ops/daily-update.sh`, `lightsoft/ops/README.md`)이 운영과 팀 웹을 갱신한 뒤 Lightica를 게시합니다. 피드의 최신 빌드(`releases.json`의 `commit`) 이후 `lightsoft/dev`에서 앱에 들어가는 경로가 바뀌었을 때만 `release.sh`를 실행합니다. 그 경로는 `apps/desktop`, `packages`, `server`(번들 CLI), `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`입니다. 웹이나 ops만 바뀐 날은 게시하지 않으므로, 팀원 앱에 빈 업데이트가 가지 않습니다.
 
-- 리포트 이슈(LIGH-101)에 "`lightsoft/dev`에 upstream vX.Y.Z merge"가 올라오면 다시 게시할 때입니다. 운영 backend와 같은 릴리스라서, 게시하지 않아도 이전 Lightica가 바로 깨지지는 않습니다.
+- push된 `lightsoft/dev`, 즉 운영이 쓰는 커밋만 게시합니다. 운영이 새 릴리스로 올라가기 전에 그 릴리스의 Lightica가 나가는 일은 없습니다.
+- 게시하면 LIGH-101 리포트에 "Lightica `<버전>` 게시"가 남고, 설치 안내 이슈(LIGH-116)가 새 버전으로 바뀝니다. 설치된 앱은 1시간 안에 받아서 배너와 macOS 알림을 띄웁니다([앱 안 업데이트](#앱-안-업데이트)).
+- 빌드나 공증이 실패하면 피드는 이전 버전 그대로이고, 실패 이슈가 전담 에이전트에게 갑니다. 다음 날 다시 시도합니다. 빌드는 ops 체크아웃(`~/.multica/ops/multica-custom`)에서 하고, 로그는 그날의 `~/.multica/ops/logs/daily-update-*.log`에 남습니다.
+- 서명 키체인, 공증 프로필, CLI 로그인을 launchd 세션에서 씁니다. 그래서 Mac Studio에 사용자가 로그인돼 있어야 합니다(로그인 키체인 잠금 해제).
+- 끄려면 `~/.multica/ops/config.env`에 `DESKTOP_RELEASE=0`을 넣습니다.
+- 급하면 사람이 `release.sh`로 바로 게시해도 됩니다. 다음 자동 작업은 그 빌드의 커밋을 기준으로 봅니다. 두 실행이 겹치면 나중 것이 시작 단계에서 멈춥니다(`.release.pid`).
 - merge가 충돌로 실패하면, 아래 파일에서 Lightica 값(이름·ID·스킴·경로·팀 피드와 설치 판단)을 유지하는 쪽으로 풉니다.
   - `apps/desktop/electron-builder.yml`(`publish`, `detectUpdateChannel`, `extraMetadata`), `apps/desktop/package.json`
   - `apps/desktop/scripts/package.mjs`(`DESKTOP_BUILD_VERSION`)

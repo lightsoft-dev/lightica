@@ -21,14 +21,15 @@ describe("ApiClient chat model selection (LIGH-104)", () => {
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("https://api.example.test");
 
-    await client.sendChatMessage("session-1", "hello", undefined, { model: "claude-opus-4-1", thinking_level: "high" });
+    await client.sendChatMessage("session-1", "hello", undefined, undefined, { model: "claude-opus-4-1", thinking_level: "high" });
     await client.sendChatMessage("session-1", "again");
 
     expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string)).toEqual({
       content: "hello",
+      steer: true,
       model_selection: { model: "claude-opus-4-1", thinking_level: "high" },
     });
-    expect(JSON.parse(fetchMock.mock.calls[1]![1]?.body as string)).toEqual({ content: "again" });
+    expect(JSON.parse(fetchMock.mock.calls[1]![1]?.body as string)).toEqual({ content: "again", steer: true });
   });
 
   it("getChatSessionModelSelection returns the recorded selection", async () => {

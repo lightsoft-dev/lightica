@@ -3,26 +3,8 @@ import { DragStrip } from "@multica/views/platform";
 import { LighticaIcon } from "@multica/ui/components/common/lightica-icon";
 import { useT } from "@multica/views/i18n";
 
-function requireRuntimeAppUrl(): string {
-  const runtimeConfig = window.desktopAPI.runtimeConfig;
-  if (!runtimeConfig.ok) {
-    throw new Error(
-      "Invariant violated: DesktopLoginPage rendered before App accepted runtime config",
-    );
-  }
-  return runtimeConfig.config.appUrl;
-}
-
 export function DesktopLoginPage() {
   const { t } = useT("auth");
-  const webUrl = requireRuntimeAppUrl();
-  const handleGoogleLogin = () => {
-    // Open web login page in the default browser with platform=desktop flag.
-    // The web callback will redirect back via multica:// deep link with the token.
-    window.desktopAPI.openExternal(
-      `${webUrl}/login?platform=desktop`,
-    );
-  };
 
   return (
     <div className="flex h-screen flex-col">
@@ -35,7 +17,9 @@ export function DesktopLoginPage() {
           // Auth store update triggers AppContent re-render → shows DesktopShell.
           // Initial workspace navigation happens in routes.tsx via IndexRedirect.
         }}
-        onGoogleLogin={handleGoogleLogin}
+        // Lightsoft fork (LIGH-257): no Google button. The team server has no
+        // Google OAuth, so it only opened the browser login; the email code
+        // signs in here directly.
       />
     </div>
   );

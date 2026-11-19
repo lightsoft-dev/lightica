@@ -31,6 +31,10 @@ import Link from "next/link";
 import { LoginPage, validateCliCallback } from "@multica/views/auth";
 import { useT } from "@multica/views/i18n";
 import { DESKTOP_PROTOCOL } from "@/features/lightsoft/desktop-protocol";
+import {
+  CloudflareAccessLoginNotice,
+  useCloudflareAccessLogin,
+} from "@/features/lightsoft/cloudflare-access-login";
 
 /**
  * Pick where a logged-in user with no explicit `?next=` should land.
@@ -152,6 +156,20 @@ function LoginPageContent() {
     router.push(await resolveLoggedInDestination(qc, onboarded, list));
   };
 
+  // Lightsoft fork (LIGH-253): behind Cloudflare Access, sign in with the
+  // Access identity. The desktop handoff effect above takes over from there
+  // when the desktop app opened this page.
+  const cloudflareAccess = useCloudflareAccessLogin({
+    ready: !isLoading && !user && cliCallbackRaw === null,
+    onSignedIn: async () => {
+      if (isDesktopHandoff) return;
+      await qc
+        .ensureQueryData(workspaceListOptions())
+        .catch(() => [] as Workspace[]);
+      await handleSuccess();
+    },
+  });
+
   // Build Google OAuth state: encode platform, next URL, and CLI callback
   // params so the callback can redirect to the right place after login.
   // CLI callback/state must survive the Google OAuth round-trip so the
@@ -239,15 +257,18 @@ function LoginPageContent() {
       }
       onTokenObtained={setLoggedInCookie}
       extra={
-        <span className="text-caption text-muted-foreground">
-          {t(($) => $.web.prefer_desktop)}{" "}
-          <Link
-            href="/download"
-            className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground/70"
-          >
-            {t(($) => $.web.download)}
-          </Link>
-        </span>
+        <>
+          <CloudflareAccessLoginNotice login={cloudflareAccess} />
+          <span className="text-caption text-muted-foreground">
+            {t(($) => $.web.prefer_desktop)}{" "}
+            <Link
+              href="/download"
+              className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground/70"
+            >
+              {t(($) => $.web.download)}
+            </Link>
+          </span>
+        </>
       }
     />
   );

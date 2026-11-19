@@ -19,6 +19,7 @@ import {
   formatUptime,
 } from "../../../shared/daemon-types";
 import { daemonStateLabel } from "./daemon-i18n";
+import { LIGHTICA_CLI_MISSING_MESSAGE, LIGHTICA_RELEASES_URL } from "../../../shared/lightica";
 
 // One row inside the diagnostics block. Values that are likely to be
 // long IDs / URLs render as monospaced + truncated with a tooltip.
@@ -167,7 +168,7 @@ export function DaemonSettingsTab() {
               ? t(($) => $.desktop.daemon.cli_checking)
               : cliInstalled
                 ? t(($) => $.desktop.daemon.cli_installed)
-                : t(($) => $.desktop.daemon.cli_missing)
+                : LIGHTICA_CLI_MISSING_MESSAGE
           }
         >
           {cliInstalled === false && (
@@ -175,9 +176,8 @@ export function DaemonSettingsTab() {
               variant="outline"
               size="sm"
               onClick={() =>
-                window.desktopAPI.openExternal(
-                  "https://github.com/multica-ai/multica#cli-installation",
-                )
+                // Lightica ships its CLI inside the app: reinstall from the team feed.
+                window.desktopAPI.openExternal(LIGHTICA_RELEASES_URL)
               }
             >
               {t(($) => $.desktop.daemon.installation_guide)}

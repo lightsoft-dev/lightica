@@ -60,7 +60,11 @@ import {
 } from "./daemon-auth-probe";
 import { daemonSpawnEnv } from "./daemon-spawn-env";
 import { focusEnvironmentAt, type FocusEnvironmentResult } from "./environment-focus";
-import { LIGHTICA_HOME_DIR, LIGHTICA_PROFILE_PREFIX } from "../shared/lightica";
+import {
+  LIGHTICA_BUNDLED_CLI_ONLY,
+  LIGHTICA_HOME_DIR,
+  LIGHTICA_PROFILE_PREFIX,
+} from "../shared/lightica";
 
 const POLL_INTERVAL_MS = 5_000;
 const PREFS_DIR = join(homedir(), LIGHTICA_HOME_DIR);
@@ -564,6 +568,15 @@ async function resolveCliBinary(): Promise<string | null> {
         cachedCliBinaryVersion = version;
         return bundled;
       }
+    }
+
+    // Lightica: the bundled CLI or nothing. The steps below would install
+    // upstream's latest release or run an unrelated `multica` from PATH.
+    if (LIGHTICA_BUNDLED_CLI_ONLY) {
+      console.error(`[daemon] bundled CLI at ${bundled} is unusable; reinstall Lightica`);
+      cachedCliBinary = null;
+      cachedCliBinaryVersion = null;
+      return null;
     }
 
     const managed = managedCliPath();

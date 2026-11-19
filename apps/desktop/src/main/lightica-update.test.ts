@@ -74,9 +74,11 @@ describe("manualDownloadUrl", () => {
   });
 });
 
-it("packages the same feed the app reads", () => {
+it("packages the same feed the app reads, never upstream releases", () => {
   // electron-builder writes publish.url into the bundled app-update.yml.
   const config = readFileSync(resolve(__dirname, "../../electron-builder.yml"), "utf-8");
+  expect(config).not.toMatch(/provider:\s*github/);
+  expect(config).not.toMatch(/^\s*owner:\s*multica-ai/m);
   const publish = config.slice(config.indexOf("\npublish:"));
   expect(publish).toMatch(/^\s+provider: generic$/m);
   expect(publish).toMatch(new RegExp(`^\\s+url: ${LIGHTICA_UPDATE_FEED_URL.replace(/[.]/g, "\\.")}$`, "m"));

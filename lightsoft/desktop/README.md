@@ -22,7 +22,7 @@ Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 
 - Xcode Command Line Tools, Node 22 이상, pnpm, Go(`server/go.mod` toolchain)가 필요합니다.
 - **Lightsoft 서명 인증서**(Developer ID Application: Lightsoft)가 서명용 키체인에 있어야 합니다. 확인: `lightsoft/desktop/signing.sh status`. 다른 Developer ID로 서명하려면 `CSC_NAME="<이름> (<TEAMID>)"`를 줍니다.
 
-  처음 만들거나 갱신할 때(인증서 유효기간 5년):
+  처음 만들거나 갱신할 때. 지금 인증서(팀 `H66C2M66DC`)는 **2027-12-19**까지 유효하니, 그 전에 같은 순서로 다시 발급합니다. 이미 서명·공증한 빌드는 만료 뒤에도 열립니다(서명에 타임스탬프가 있습니다). 팀 ID가 같으면 앱 안 자동 설치도 그대로 이어집니다.
   1. `lightsoft/desktop/signing.sh csr`: 이 맥에서 개인키와 CSR(`~/.lightsoft/signing/Lightsoft-DeveloperID.certSigningRequest`)을 만듭니다. 개인키는 이 맥 밖으로 나가지 않습니다.
   2. **Account Holder**가 developer.apple.com에서 인증서를 발급합니다. Developer ID 인증서는 Account Holder만 만들 수 있고, App Store Connect API 키로는 403이 납니다. 순서: Certificates, IDs & Profiles → Certificates → **+** → **Developer ID Application** → Profile Type **G2 Sub-CA** → 위 CSR 업로드 → Download(`developerID_application.cer`).
   3. `lightsoft/desktop/signing.sh install ~/Downloads/developerID_application.cer`: 받은 인증서와 개인키를 전용 키체인(`~/Library/Keychains/lightsoft-signing.keychain-db`)에 넣습니다. 키체인 비밀번호는 무작위로 만들어 로그인 키체인에 저장하므로, 빌드 중에 codesign 허용 창이 뜨지 않습니다. 암호화된 백업(`~/.lightsoft/signing/developer-id-application.p12`, 비밀번호도 로그인 키체인)을 남기고 평문 개인키는 지웁니다.
@@ -61,7 +61,7 @@ lightsoft/desktop/build.sh --x64      # Intel 맥용
 - semver로는 prerelease라서 `0.11.0-20261119`은 `0.11.0`보다 낮습니다. 피드에는 날짜 버전만 올리므로 상관없습니다. 날짜와 N은 숫자로 비교되어 `.10`이 `.9`보다 높습니다.
 - 데몬은 번들 CLI 버전을 런타임 버전으로 보고합니다. 설정 → 런타임(또는 `multica runtime list`)에서 누가 어느 빌드를 쓰는지 보입니다.
   - 서버의 CLI 최소 버전 검사는 앞의 `X.Y.Z`만 봅니다. 그래서 `0.11.0-20261119`은 `0.11.0`으로 검사됩니다. 예전 `git describe` 버전은 검사를 건너뛰었지만, 이제는 upstream 같은 버전의 데몬과 똑같이 검사됩니다.
-  - CLI 자체 업데이트(`multica update`, 데몬 자동 업데이트, 런타임 화면의 업데이트)는 `X.Y.Z` 꼴만 릴리스로 봅니다. 그래서 번들 CLI가 upstream 릴리스로 바뀌지 않습니다.
+  - 번들 CLI가 upstream 릴리스로 바뀌지 않는 이유는 버전 꼴이 아니라 아래 [upstream 업데이트를 받지 않는 설계](#upstream-업데이트를-받지-않는-설계)입니다.
 - `electron-builder.yml`의 `detectUpdateChannel: false`는 꼭 둡니다. 없으면 electron-builder가 날짜를 prerelease 채널로 읽어 `20261119-mac.yml`을 만들고 앱에도 그 채널을 넣어서, 빌드마다 피드가 따로 생깁니다.
 
 ## 설치와 첫 실행
@@ -130,6 +130,20 @@ DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Int
 - 업데이트 다운로드 캐시는 `~/Library/Caches/lightica-updater`입니다(`extraMetadata.name: lightica`). 공식 Multica 앱의 캐시와 겹치지 않습니다.
 - 이 기능은 이 버전 체계가 들어간 빌드부터 동작합니다. 그 전 빌드(`0.10.0-…`, `0.11.0-26-g…`)는 업데이트 확인이 막혀 있으니 한 번은 손으로 설치합니다.
 
+### upstream 업데이트를 받지 않는 설계
+
+Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 릴리스 피드에서만 받습니다. 경로마다 막는 곳은 이렇습니다.
+
+| 경로 | upstream이면 | Lightica |
+|---|---|---|
+| 앱 업데이트 | GitHub `multica-ai/multica` 릴리스 | 팀 피드만 읽습니다. 실행 중에 `setFeedURL`(`updater.ts`)로 고정하고, 빌드에 들어가는 `app-update.yml`도 팀 피드입니다(`electron-builder.yml`의 `publish`). 테스트가 `multica-ai`/`github` provider가 없는지 봅니다. |
+| 번들 CLI를 못 쓸 때 | GitHub 최신 CLI를 userData에 받거나 PATH의 `multica`를 씁니다 | 대체하지 않습니다. 번들 CLI만 실행합니다(`LIGHTICA_BUNDLED_CLI_ONLY`, `daemon-manager.ts`). 설정 → 데몬에 "Lightica를 다시 설치" 안내와 릴리스 페이지 버튼이 나옵니다. |
+| 데몬 자동 업데이트 | GitHub 최신 CLI로 스스로 교체 | 데스크톱이 띄운 데몬(`MULTICA_LAUNCHED_BY=desktop`)은 건너뜁니다(upstream `auto_update.go`). |
+| 런타임 화면의 "업데이트" | 서버가 데몬에 upstream 버전 설치를 보냅니다 | 데스크톱이 띄운 데몬은 거부하고 실패로 보고합니다(upstream `handleUpdate`, 포크 테스트 `server/internal/daemon/lightsoft_desktop_update_test.go`). |
+
+- 일일 05:00 작업이 upstream 릴리스를 `lightsoft/dev`에 merge해도, 팀원 앱은 사람이 `release.sh`로 게시한 빌드만 받습니다.
+- upstream merge가 충돌하면 이 표의 파일에서 Lightica 쪽을 유지합니다.
+
 ### 팀원 업데이트 방법
 
 - 알림의 **Restart now**를 누르거나 앱을 종료했다가 다시 켭니다(자동 설치).
@@ -144,7 +158,8 @@ DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Int
 - merge가 충돌로 실패하면, 아래 파일에서 Lightica 값(이름·ID·스킴·경로·팀 피드와 설치 판단)을 유지하는 쪽으로 풉니다.
   - `apps/desktop/electron-builder.yml`(`publish`, `detectUpdateChannel`, `extraMetadata`), `apps/desktop/package.json`
   - `apps/desktop/scripts/package.mjs`(`DESKTOP_BUILD_VERSION`)
-  - `apps/desktop/src/main/{index,runtime-config-loader,daemon-manager,daemon-profile,updater}.ts`, `apps/desktop/src/shared/updater-types.ts`(`manual` 상태)
+  - `apps/desktop/src/main/{index,runtime-config-loader,daemon-manager,daemon-profile,updater}.ts`(`daemon-manager`는 번들 CLI 전용 게이트), `apps/desktop/src/shared/updater-types.ts`(`manual` 상태)
+  - `apps/desktop/src/renderer/src/components/daemon-settings-tab.tsx`(CLI 없음 안내)
   - `apps/desktop/src/renderer/{index.html,src/App.tsx,src/pages/project-detail-page.tsx}`, `apps/desktop/src/renderer/src/components/{update-notification,updates-settings-tab}.tsx`
   - `apps/web/app/(auth)/login/page.tsx`, `apps/web/app/auth/callback/page.tsx`, `apps/web/platform/navigation.tsx`
   - 팀 기능 경로: `apps/desktop/src/renderer/src/routes.tsx`의 `secrets`(시크릿 매니저, `lightsoft/secrets/README.md`)

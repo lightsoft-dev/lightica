@@ -13,6 +13,12 @@ const context = vi.hoisted(() => ({
   }>,
   finishStart: null as null | (() => void),
   finishStop: null as null | ((error?: Error) => void),
+  // Upstream's suite runs its CLI install fallback; the Lightica case turns it off.
+  bundledCliOnly: false,
+}));
+vi.mock("../shared/lightica", async (original) => ({
+  ...await original<typeof import("../shared/lightica")>(),
+  get LIGHTICA_BUNDLED_CLI_ONLY() { return context.bundledCliOnly; },
 }));
 vi.mock("electron", () => ({
   app: {
@@ -239,6 +245,25 @@ describe("desktop quit uses the CLI lifecycle", () => {
     await vi.waitFor(() => expect(context.finishStop).toBeTypeOf("function"));
     context.finishStop!();
     await vi.waitFor(() => expect(context.quit).toHaveBeenCalledOnce());
+  });
+
+  it("Lightica runs only its bundled CLI: no upstream install, no PATH fallback", async () => {
+    context.bundledCliOnly = true;
+    try {
+      // Every candidate path exists, but the bundled binary does not run.
+      context.exec.mockImplementation((_bin: string, args: string[], _options: unknown, callback: (error: Error | null, output?: string) => void) => {
+        callback(args[0] === "version" ? new Error("bad CPU type in executable") : null);
+      });
+      const { setupDaemonManager } = await import("./daemon-manager");
+      setupDaemonManager(() => null);
+
+      await expect(context.handlers.get("daemon:is-cli-installed")!({})).resolves.toBe(false);
+      expect(context.install).not.toHaveBeenCalled();
+      const probed = context.exec.mock.calls.filter(([, args]) => args[0] === "version").map(([bin]) => bin);
+      expect(probed).toEqual(["/test/desktop/resources/bin/multica"]);
+    } finally {
+      context.bundledCliOnly = false;
+    }
   });
 
   it("does not wait for CLI installation when no daemon has started", async () => {

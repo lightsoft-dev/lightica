@@ -31,6 +31,16 @@ export const LIGHTICA_UPDATE_FEED_URL = `${LIGHTICA_DEFAULT_API_URL}/lightica/`;
 // The release page (version history and downloads) is the feed's index.html.
 export const LIGHTICA_RELEASES_URL = LIGHTICA_UPDATE_FEED_URL;
 
+// Lightica takes no update from upstream (LIGH-191). The app reads only the
+// team feed above, and the daemon runs only the CLI bundled in this build:
+// upstream's fallbacks — installing multica-ai's latest release into userData,
+// or borrowing a `multica` found on PATH — are off. (The daemon itself already
+// refuses GitHub and Runtimes-page self-updates when Desktop launches it.)
+// Typed as boolean so upstream's fallback stays compiled and tested.
+export const LIGHTICA_BUNDLED_CLI_ONLY: boolean = true;
+export const LIGHTICA_CLI_MISSING_MESSAGE =
+  "Lightica에 들어 있는 CLI를 실행할 수 없습니다. 릴리스 페이지에서 Lightica를 다시 설치하세요.";
+
 // latest-mac.yml key that release.sh adds: the code-signing team ID of the
 // published build. Squirrel.Mac only installs a bundle signed by the running
 // app's own Developer ID team, so the app installs an update itself only when

@@ -27,10 +27,11 @@ describe("iOS scene lifecycle configuration", () => {
   });
 
   it.each([
-    [undefined, "Multica (Dev)", "ai.multica.mobile.dev"],
-    ["development", "Multica (Dev)", "ai.multica.mobile.dev"],
-    ["staging", "Multica (Staging)", "ai.multica.mobile.staging"],
-    ["production", "Multica", "ai.multica.mobile"],
+    // Lightsoft fork (LIGH-258): every variant is Lightica.
+    [undefined, "Lightica (Dev)", "dev.lightsoft.lightica.mobile.dev"],
+    ["development", "Lightica (Dev)", "dev.lightsoft.lightica.mobile.dev"],
+    ["staging", "Lightica (Staging)", "dev.lightsoft.lightica.mobile.staging"],
+    ["production", "Lightica", "dev.lightsoft.lightica.mobile"],
   ])("enables scene support for %s without changing app identity", (env, name, bundleIdentifier) => {
     vi.stubEnv("APP_ENV", env);
     vi.stubEnv("EXPO_BUNDLE_IDENTIFIER_DEV", undefined);
@@ -40,7 +41,7 @@ describe("iOS scene lifecycle configuration", () => {
 
     expect(config.name).toBe(name);
     expect(config.ios?.bundleIdentifier).toBe(bundleIdentifier);
-    expect(config.scheme).toBe("multica");
+    expect(config.scheme).toBe("lightica");
     expect(config.plugins).toContainEqual([
       "expo-build-properties",
       { ios: { buildReactNativeFromSource: true, enableSceneSupport: true } },
@@ -60,6 +61,6 @@ describe("iOS scene lifecycle configuration", () => {
 
     const config = createConfig({ config: {} } as ConfigContext);
     expect(config.ios).toMatchObject({ bundleIdentifier, appleTeamId: "ABCDE12345" });
-    expect(config.scheme).toBe("multica");
+    expect(config.scheme).toBe("lightica");
   });
 });

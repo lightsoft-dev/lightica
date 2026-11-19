@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Installed as ~/Library/LaunchAgents/dev.lightsoft.multica-usage.plist by
+     lightsoft/usage/install.sh (__HOME__ is replaced).
+     See lightsoft/usage/README.md. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.lightsoft.multica-usage</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/.multica/usage/bin/lightsoft-usage-server</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>LIGHTSOFT_USAGE_ADDR</key>
+    <string>127.0.0.1:13500</string>
+    <key>LIGHTSOFT_USAGE_API_URL</key>
+    <string>http://127.0.0.1:8080</string>
+    <key>LIGHTSOFT_USAGE_ALLOWED_ORIGINS</key>
+    <string>https://mac-studio.taile83671.ts.net:3444,http://localhost:13100,https://lightica.lightsoft.dev</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>__HOME__/.multica/usage</string>
+  <key>StandardOutPath</key>
+  <string>__HOME__/.multica/usage/logs/service.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.multica/usage/logs/service.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>

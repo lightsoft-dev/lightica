@@ -1,6 +1,7 @@
 import { LoginPage } from "@multica/views/auth";
 import { DragStrip } from "@multica/views/platform";
-import { MulticaIcon } from "@multica/ui/components/common/multica-icon";
+import { LighticaIcon } from "@multica/ui/components/common/lightica-icon";
+import { useT } from "@multica/views/i18n";
 
 function requireRuntimeAppUrl(): string {
   const runtimeConfig = window.desktopAPI.runtimeConfig;
@@ -13,6 +14,7 @@ function requireRuntimeAppUrl(): string {
 }
 
 export function DesktopLoginPage() {
+  const { t } = useT("auth");
   const webUrl = requireRuntimeAppUrl();
   const handleGoogleLogin = () => {
     // Open web login page in the default browser with platform=desktop flag.
@@ -26,7 +28,9 @@ export function DesktopLoginPage() {
     <div className="flex h-screen flex-col">
       <DragStrip />
       <LoginPage
-        logo={<MulticaIcon mode="intro" size={48} />}
+        // Lightsoft fork (LIGH-253): Lightica signs in under its own name and mark.
+        logo={<LighticaIcon size={48} />}
+        title={t(($) => $.signin.title).replace("Multica", "Lightica")}
         onSuccess={() => {
           // Auth store update triggers AppContent re-render → shows DesktopShell.
           // Initial workspace navigation happens in routes.tsx via IndexRedirect.

@@ -134,6 +134,12 @@ describe("LoginPage", () => {
     expect(screen.queryByText(/your session expired/i)).not.toBeInTheDocument();
   });
 
+  it("uses the title a shell passes in", () => {
+    renderWithI18n(<LoginPage onSuccess={onSuccess} title="Sign in to Lightica" />);
+    expect(screen.getByText("Sign in to Lightica")).toBeInTheDocument();
+    expect(screen.queryByText(/sign in to multica/i)).not.toBeInTheDocument();
+  });
+
   it("renders email form with 'Sign in to Multica' title", () => {
     renderWithI18n(<LoginPage onSuccess={onSuccess} />);
     expect(

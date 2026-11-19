@@ -1623,6 +1623,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	r.With(authVerifyRL).Post("/auth/verify-code", h.VerifyCode)
 	r.With(authRL).Post("/auth/google", h.GoogleLogin)
 	r.Post("/auth/logout", h.Logout)
+	// Lightsoft fork (LIGH-253): Cloudflare Access identity → Multica session.
+	r.With(authRL).Post("/api/lightsoft/auth/cloudflare-access", h.LightsoftCloudflareAccessLogin)
 
 	// Public API
 	r.Get("/api/config", h.GetConfig)

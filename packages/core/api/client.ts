@@ -1175,6 +1175,15 @@ export class ApiClient {
     });
   }
 
+  /**
+   * Lightsoft fork (LIGH-253): exchange the Cloudflare Access identity on this
+   * request for a session. 404 when the backend has no Access login; 403 with
+   * a `code` when the request carries no usable Access identity.
+   */
+  async lightsoftCloudflareAccessLogin(): Promise<LoginResponse> {
+    return this.fetch("/api/lightsoft/auth/cloudflare-access", { method: "POST" });
+  }
+
   async logout(): Promise<void> {
     await this.fetch("/auth/logout", { method: "POST" });
   }

@@ -17,6 +17,15 @@ import {
 } from "@/features/auth/auth-cookie";
 import { detectWebOS } from "@/platform/client-os";
 import { useUserLocaleSyncEnabled } from "@/platform/user-locale-sync";
+import { noteCloudflareAccessLogout } from "@/features/lightsoft/cloudflare-access-login";
+
+// Lightsoft fork (LIGH-253): an explicit logout also stops this tab from
+// signing straight back in through Cloudflare Access. A session the server
+// ended keeps only the cookie cleanup, so Access can sign the user back in.
+function clearSessionOnLogout() {
+  clearLoggedInCookie();
+  noteCloudflareAccessLogout();
+}
 
 // Client-only: every reading is a live client measurement the server cannot
 // render, so server HTML would only ever mismatch on hydration.
@@ -93,7 +102,8 @@ export function WebProviders({
           wsUrl={wsUrl || deriveWsUrl()}
           cookieAuth={cookieAuth}
           onLogin={setLoggedInCookie}
-          onLogout={clearLoggedInCookie}
+          onLogout={clearSessionOnLogout}
+          onSessionExpired={clearLoggedInCookie}
           identity={identity}
           locale={locale}
           resources={resources}

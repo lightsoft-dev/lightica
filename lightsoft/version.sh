@@ -1,25 +1,29 @@
 #!/usr/bin/env bash
-# Prints the Lightsoft build version: <upstream release>-<YYYYMMDD>[.N]
-# (LIGH-191), e.g. 0.11.0-20261119, then 0.11.0-20261119.2 for a second build
-# on the same day. The date is Asia/Seoul. Lightica (lightsoft/desktop) and the
-# fork backend image (LIGH-190) both take their version from here.
+# Lightsoft team build version: <upstream release>-<YYYYMMDD>[.N] (LIGH-190, LIGH-191),
+# e.g. 0.11.0-20261119, then 0.11.0-20261119.2 for a second build on the same
+# day. One place for the format, shared by the fork backend image
+# (lightsoft/backend) and Lightica (lightsoft/desktop).
 #
-#   lightsoft/version.sh                     # nothing published yet
-#   lightsoft/version.sh --taken FILE        # FILE: versions already used, one per line
+#   lightsoft/version.sh                     team version; nothing used yet today
+#   lightsoft/version.sh --taken FILE        FILE: versions already used, one per line (- = stdin)
 #   docker image ls --format '{{.Tag}}' img | lightsoft/version.sh --taken -
+#   lightsoft/version.sh --release           the upstream release itself, e.g. v0.11.0
 #
-# The upstream release is the nearest vX.Y.Z tag on HEAD. lightsoft/dev only
-# ever merges upstream release tags, so that is the release it is built on.
+# The upstream release is the newest vX.Y.Z tag merged into HEAD: lightsoft/dev
+# only ever merges upstream release tags, so that is the release it is built on.
+# RELEASE=vX.Y.Z picks it instead (it must be merged into HEAD) — the daily
+# update names the release it just merged.
 #
 # Valid semver: the date and N are numeric prerelease identifiers, so versions
 # order by release, then date, then N. A plain release (0.11.0) sorts above
 # every 0.11.0-<date>; the Lightica feed only carries dated versions.
 #
-# LIGHTSOFT_VERSION_DATE=YYYYMMDD overrides the date (tests).
+# The date is Asia/Seoul; LIGHTSOFT_VERSION_DATE=YYYYMMDD overrides it (tests).
 set -euo pipefail
 
 die() { printf 'version.sh: %s\n' "$*" >&2; exit 1; }
 
+mode=team
 taken=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -27,26 +31,39 @@ while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || die "--taken needs a file (or - for stdin)"
       if [ "$2" = "-" ]; then taken="$(cat)"; else taken="$(cat "$2")"; fi
       shift 2 ;;
+    --release) mode=release; shift ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-describe() { git -C "$root" describe --tags --match 'v[0-9]*' --abbrev=0 HEAD 2>/dev/null; }
-tag="$(describe || true)"
-if [ -z "$tag" ]; then
-  # A fork clone may not have the upstream tags yet.
-  git -C "$root" fetch -q --no-tags https://github.com/multica-ai/multica.git 'refs/tags/v*:refs/tags/v*' >&2 \
-    || die "could not fetch upstream release tags"
-  tag="$(describe || true)"
+newest_release() {
+  git -C "$root" tag --merged HEAD --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true
+}
+
+rel="${RELEASE:-}"
+if [ -z "$rel" ]; then
+  rel="$(newest_release)"
+  if [ -z "$rel" ]; then
+    # A fork clone may not have the upstream tags yet.
+    git -C "$root" fetch -q --no-tags https://github.com/multica-ai/multica.git 'refs/tags/v*:refs/tags/v*' >&2 \
+      || die "could not fetch upstream release tags"
+    rel="$(newest_release)"
+  fi
+  [ -n "$rel" ] || die "no upstream release tag (vX.Y.Z) is merged into HEAD"
 fi
-upstream="${tag#v}"
-[[ "$upstream" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "nearest release tag '$tag' is not vX.Y.Z"
+[[ "$rel" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "release must look like vX.Y.Z, got '$rel'"
+git -C "$root" merge-base --is-ancestor "$rel" HEAD 2>/dev/null || die "$rel is not merged into HEAD"
+
+if [ "$mode" = release ]; then
+  echo "$rel"
+  exit 0
+fi
 
 date="${LIGHTSOFT_VERSION_DATE:-$(TZ=Asia/Seoul date +%Y%m%d)}"
 [[ "$date" =~ ^[0-9]{8}$ ]] || die "date '$date' is not YYYYMMDD"
 
-base="$upstream-$date"
+base="${rel#v}-$date"
 # Highest N already used for this base; the bare base counts as 1.
 max=0
 while IFS= read -r v; do

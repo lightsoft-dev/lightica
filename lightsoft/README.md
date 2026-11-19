@@ -1,8 +1,8 @@
 # Lightsoft 팀 웹 클라이언트
 
 이 브랜치(`lightsoft/dev`)는 팀 전용 기능을 넣는 작업 브랜치입니다. 기준은 **운영 Multica가 쓰는 upstream 릴리스 태그**입니다.
-매일 05:00 자동 작업이 운영을 upstream 최신 릴리스로 올리고, 같은 태그를 이 브랜치에 merge합니다(`lightsoft/ops/README.md`). upstream `main`은 이 브랜치에 merge하지 마세요. 운영 API보다 앞서서 404가 납니다.
-웹 클라이언트만 따로 띄우고, **API와 DB는 Mac Studio에서 도는 운영 Multica를 그대로 씁니다.**
+매일 05:00 자동 작업이 upstream 최신 릴리스를 이 브랜치에 merge하고, 이 브랜치로 운영 backend를 다시 빌드해 올립니다(`lightsoft/ops/README.md`). upstream `main`은 이 브랜치에 merge하지 마세요. 운영 API보다 앞서서 404가 납니다.
+팀 웹 클라이언트는 따로 띄우고, **API와 DB는 Mac Studio에서 도는 운영 Multica를 씁니다.** 운영 backend 이미지는 이 브랜치로 빌드한 것입니다(아래 "포크 backend").
 
 | | 주소 | 내용 |
 |---|---|---|
@@ -16,7 +16,7 @@
 ```
 브라우저 ──https──▶ tailscale serve :3444
                     ├─ /                            → 127.0.0.1:13000  (multica-team-web-web-1, 이 브랜치의 Dockerfile.web 빌드)
-                    ├─ /api /ws /v1 /health         → 127.0.0.1:8080   (운영 backend, 고정 릴리스 태그)
+                    ├─ /api /ws /v1 /health         → 127.0.0.1:8080   (운영 backend, 이 브랜치로 빌드한 이미지)
                     ├─ /lightsoft-term              → 127.0.0.1:13200  (프로젝트 터미널 게이트웨이, launchd)
                     ├─ /lightsoft-secrets           → 127.0.0.1:13300  (시크릿 매니저, launchd)
                     └─ /lightica                    → 127.0.0.1:13400  (Lightica 릴리스 피드, launchd. LIGH-191)
@@ -60,13 +60,57 @@ make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
 
 - 채팅 입력창에서 그 채팅에만 적용할 모델과 effort를 고릅니다. 에이전트 기본 설정은 바뀌지 않습니다. 대상 런타임은 Claude Code, Codex, pi입니다.
 - 고른 값은 다음 메시지를 보낼 때 그 태스크의 `context`(`lightsoft_model_selection` 키)에 기록됩니다. 이후 메시지는 같은 세션의 마지막 값을 따릅니다. DB 스키마는 바꾸지 않습니다. 데몬도 바꾸지 않습니다. 서버가 claim 응답의 `model`/`thinking_level`을 이 값으로 바꿔 줍니다.
-- **포크 backend가 있어야 동작합니다.** 운영 backend가 upstream 이미지면 `GET /api/lightsoft/capabilities`가 404를 돌려주고, 선택기가 숨겨집니다.
+- **포크 backend가 있어야 동작합니다.** 운영 backend가 upstream 이미지면 `GET /api/lightsoft/capabilities`가 404를 돌려주고, 선택기가 숨겨집니다(아래 "포크 backend").
 - 포크 코드는 새 파일에 모았습니다: `server/internal/{handler,service}/lightsoft_chat_model.go`, `server/pkg/db/queries/lightsoft_chat_model.sql`, `packages/core/chat/model-selection.ts`, `packages/core/api/lightsoft-chat-model-selection.ts`, `packages/views/chat/components/chat-model-selection-picker.tsx`.
 - upstream 파일에는 연결 코드만 몇 줄 넣었습니다: `chat.go`, `task.go`, `daemon.go`, `router.go`, `client.ts`, `use-chat-controller.ts`, `chat-page.tsx`, `chat-window.tsx`. 릴리스 merge에서 충돌이 나면 이 지점부터 확인하세요.
 
+## 포크 backend (운영)
+
+운영 backend 컨테이너(`multica-backend-1`)는 이 브랜치로 빌드한 이미지 `localhost/lightsoft/multica-backend`를 씁니다(LIGH-190). 운영 웹(:3443), DB, Tailscale 설정은 upstream 그대로입니다. 포크 backend는 upstream API에 팀 기능만 더한 것이라, 운영 웹과 모바일도 지금처럼 동작합니다.
+
+- `~/.multica/server/.env`의 `MULTICA_BACKEND_IMAGE=localhost/lightsoft/multica-backend`가 스위치입니다. 일일 자동 작업도 이 값을 보고 포크 backend를 빌드할지 정합니다.
+- 이미지에는 태그가 두 개 붙습니다.
+  - `v0.11.0`: 운영 compose가 실제로 쓰는 이름입니다. compose는 backend와 web에 같은 `MULTICA_IMAGE_TAG`를 쓰므로, 포크 이미지도 upstream 릴리스 태그를 달아야 합니다. 다시 빌드하면 이 태그가 새 이미지로 옮겨 갑니다.
+  - `0.11.0-YYYYMMDD[.N]`: 빌드마다 하나씩 붙고 옮겨지지 않습니다. 형식은 Lightica와 같고 `lightsoft/version.sh`가 계산합니다. 도움말 메뉴의 "서버 버전"과 `/api/config`의 `server_version`에 이 값이 보입니다. `/health`의 `commit`은 빌드한 이 브랜치 커밋입니다.
+- 이름이 `localhost/`로 시작하는 것은 레지스트리에 올리지 않는 로컬 이미지라서입니다. `compose pull`로 받을 수 없으므로 실패하고, 남의 이미지를 받아 올 일도 없습니다. backend는 pull하지 말고 빌드합니다.
+- 빌드 목록: `docker images localhost/lightsoft/multica-backend`. 일일 작업이 최근 5개 빌드와 현재·직전 릴리스 태그만 남깁니다.
+
+```bash
+bash lightsoft/backend/build.sh       # HEAD로 빌드 (server/ 변경이 커밋돼 있어야 함). 팀 버전을 출력
+bash lightsoft/backend/verify.sh      # 격리 Postgres(127.0.0.1:5434) + backend(18080)에 띄워 API 스모크 후 정리
+```
+
+**배포.** `lightsoft/dev`의 `server/`·`Dockerfile`·`docker/`가 바뀌면 다음 05:00 작업이 다시 빌드해 올립니다. 프런트만 바뀌었으면 backend는 재시작하지 않습니다. 바로 올리려면 일일 작업을 한 번 실행합니다. 빌드, DB 백업, 전환, 헬스 확인, 실패 시 롤백까지 같은 절차로 진행됩니다.
+
+```bash
+launchctl kickstart gui/$(id -u)/dev.lightsoft.multica-daily-update
+tail -f ~/.multica/ops/logs/daily-update-$(date +%Y%m%d).log
+```
+
+**롤백.**
+
+```bash
+cd ~/.multica/server
+# 직전 포크 빌드로: 그 빌드의 팀 버전 태그를 운영 태그로 다시 붙인다
+docker tag localhost/lightsoft/multica-backend:<이전 팀 버전> localhost/lightsoft/multica-backend:$(grep '^MULTICA_IMAGE_TAG=' .env | cut -d= -f2)
+docker compose -f docker-compose.selfhost.yml up -d --no-deps backend
+# upstream 이미지로: 스위치를 되돌린다 (스키마가 같아 DB 복원은 필요 없음)
+sed -i '' 's|^MULTICA_BACKEND_IMAGE=.*|MULTICA_BACKEND_IMAGE=ghcr.io/multica-ai/multica-backend|' .env
+docker compose -f docker-compose.selfhost.yml up -d --no-deps backend
+curl -s http://127.0.0.1:8080/health   # commit 확인
+```
+
+upstream으로 되돌리면 팀 기능(모델·effort 선택기 등)이 숨겨지고, 일일 작업도 upstream 이미지를 받는 예전 방식으로 돌아갑니다. 다시 포크로 가려면 스위치를 `localhost/lightsoft/multica-backend`로 바꾸고 위 배포 명령을 실행합니다. 처음 전환할 때처럼 `build.sh`로 먼저 빌드해 두면 `up -d --no-deps backend`만으로도 됩니다.
+
+**주의.**
+
+- 서버 코드를 바꾸는 PR은 merge하면 다음 날 05:00에 운영 backend로 나갑니다. 운영 웹(:3443)과 모든 데몬이 이 backend를 씁니다.
+- 포크에 DB 마이그레이션을 추가하지 않습니다. upstream 번호와 겹치고, upstream 이미지로 되돌리기 어려워집니다. 팀 기능은 LIGH-104처럼 스키마를 바꾸지 않고 만듭니다. 꼭 필요하면 구현 전에 설계를 올려 확인받습니다.
+- 헬스 확인에 실패해 롤백된 트리는 다음 날 다시 배포하지 않습니다. 새 커밋을 올리거나 `~/.multica/ops/state/fork-backend.failed`를 지우면 다시 시도합니다.
+
 ## ⚠️ 주의
 
-- **버전 맞춤**: 운영 backend와 이 브랜치는 같은 릴리스(현재 v0.10.0)를 기준으로 합니다. 운영 버전은 `~/.multica/server/.env`의 `MULTICA_IMAGE_TAG`에 고정돼 있고, 자동 작업이 함께 올립니다.
-- **포크 backend를 운영 DB에 붙이지 않습니다.** 마이그레이션과 백그라운드 작업이 겹칩니다. 새 API나 DB가 필요한 기능은 운영 backend를 교체하는 일이므로 따로 계획합니다.
+- **버전 맞춤**: 운영 backend와 이 브랜치는 같은 릴리스(현재 v0.11.0)를 기준으로 합니다. 운영 버전은 `~/.multica/server/.env`의 `MULTICA_IMAGE_TAG`에 고정돼 있고, 자동 작업이 함께 올립니다.
+- **운영 DB에는 운영 backend 컨테이너만 붙입니다.** 그 이미지는 위 절차로만 만들고 바꿉니다. 개발용 backend(`go run ./cmd/server`, `cmd/migrate`)는 운영 DB에 붙이지 않습니다. 마이그레이션과 백그라운드 작업이 겹칩니다.
 - 레포의 `docker-compose.yml`도 이름이 `multica`라서 운영 stack과 겹칩니다. `make dev`, `make setup*`, `make db-*`를 기본값으로 실행하지 마세요. 로컬 `.env`와 `docker-compose.override.yml`이 격리된 `multica-custom` 프로젝트(Postgres 5434)로 우회시키는 안전장치입니다.
 - `localhost:8080`은 IPv6로 다른 프로세스가 잡고 있습니다. 운영 API는 항상 `127.0.0.1:8080`으로 지정하세요.

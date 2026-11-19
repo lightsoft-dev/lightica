@@ -40,6 +40,17 @@ else
   echo "ok   malformed date rejected"
 fi
 
+check "release" "v0.12.0" "$(run --release)"
+check "RELEASE picks an older merged release" "0.11.0-20261119" "$(RELEASE=v0.11.0 run)"
+check "RELEASE with --release" "v0.11.0" "$(RELEASE=v0.11.0 run --release)"
+if RELEASE=v0.13.0 run >/dev/null 2>&1; then
+  echo "FAIL unmerged RELEASE accepted"; fail=1
+else
+  echo "ok   unmerged RELEASE rejected"
+fi
+git -C "$repo" tag v0.12.1-rc.1
+check "prerelease tags ignored" "v0.12.0" "$(run --release)"
+
 # Default date is Asia/Seoul.
 check "Seoul date" "0.12.0-$(TZ=Asia/Seoul date +%Y%m%d)" "$(bash "$repo/lightsoft/version.sh")"
 

@@ -67,7 +67,7 @@ lightsoft/desktop/build.sh --x64      # Intel 맥용
 ## 설치와 첫 실행
 
 1. dmg를 열어 Lightica를 Applications로 옮깁니다. 공증돼 있어 경고 없이 열립니다.
-2. Tailscale에 접속한 상태에서 실행합니다. 로그인을 누르면 브라우저에서 팀 클라이언트(:3444) 로그인이 열리고, 끝나면 `lightica://`로 앱에 돌아옵니다.
+2. Tailscale에 접속한 상태에서 실행합니다. 앱 안에서 이메일로 받은 코드로 로그인합니다. 팀 서버에 Google OAuth가 없어서 구글 로그인 버튼은 두지 않았습니다(LIGH-257). 팀 웹의 "데스크톱에서 열기"는 지금처럼 `lightica://`로 앱에 넘어옵니다.
 3. 다른 서버에 붙이려면 `~/.lightica/desktop.json`을 만듭니다. `appUrl`, `wsUrl`을 생략하면 `apiUrl`에서 계산합니다.
 
    ```json
@@ -162,6 +162,8 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
   - `apps/desktop/src/renderer/src/components/daemon-settings-tab.tsx`(CLI 없음 안내)
   - `apps/desktop/src/renderer/{index.html,src/App.tsx,src/pages/project-detail-page.tsx}`, `apps/desktop/src/renderer/src/components/{update-notification,updates-settings-tab}.tsx`
   - `apps/web/app/(auth)/login/page.tsx`, `apps/web/app/auth/callback/page.tsx`, `apps/web/platform/navigation.tsx`
+  - `apps/desktop/src/renderer/src/pages/login.tsx`(Lightica 마크·이름, 구글 버튼 없음. LIGH-253, LIGH-257)
+  - `apps/web/app/{layout,manifest}.ts(x)`, `apps/web/app/favicon.ico/route.ts`(Lightica 아이콘 경로)
   - 팀 기능 경로: `apps/desktop/src/renderer/src/routes.tsx`의 `secrets`(시크릿 매니저, `lightsoft/secrets/README.md`)
 
 ## 공식 Multica 앱과 같이 쓸 때
@@ -170,7 +172,9 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 
 ## 아이콘
 
-원본은 `lightsoft/desktop/icon-source.png`(밝은 배경 위 어두운 도형, 1024px)입니다. 바꾼 뒤 `lightsoft/desktop/make-icons.sh`(ImageMagick 필요)로 `apps/desktop/build/lightica/`를 다시 만듭니다. 스크립트는 원본의 어두운 부분만 잘라 macOS 아이콘 규격(1024px 캔버스 가운데 824px 흰 둥근 사각형)에 640px로 얹습니다. 원본 배경색과 여백은 결과에 남지 않습니다.
+원본은 `lightsoft/desktop/icon-source.png`(밝은 배경 위 어두운 도형, 1024px)입니다. 바꾼 뒤 `lightsoft/desktop/make-icons.sh`(ImageMagick 필요)로 `apps/desktop/build/lightica/`와 팀 웹 아이콘 `apps/web/public/lightica/`를 다시 만듭니다. 스크립트는 원본의 어두운 부분만 잘라 macOS 아이콘 규격(1024px 캔버스 가운데 824px 흰 둥근 사각형)에 640px로 얹습니다. 원본 배경색과 여백은 결과에 남지 않습니다.
+
+팀 웹(LIGH-257)의 favicon·홈 화면 아이콘·설치 이름도 Lightica입니다. `apps/web/public/lightica/`의 PNG(`icon-192/512`, `apple-touch-icon`, `icon-maskable-512`)는 위 스크립트가 만들고, `favicon.svg`는 벡터라 손으로 그렸습니다(`packages/ui/components/common/lightica-icon.tsx`와 같은 도형). 경로는 `apps/web/features/lightsoft/brand.ts` 한 곳에 있고 `app/layout.tsx`, `app/manifest.ts`, `app/favicon.ico/route.ts`가 그걸 씁니다. upstream의 `public/favicon.svg`, `public/icons/`는 덮어쓰지 않습니다. upstream이 자주 바꾸고(`scripts/brand/sync.mjs` 검사도 있음) 일일 merge에서 충돌이 나기 때문입니다. 브라우저 탭 제목(`… | Multica`)은 upstream 그대로입니다.
 
 워크스페이스 아이콘(사이드바에 보이는 워크스페이스 이미지)은 앱이 아니라 서버 데이터입니다. 설정 → 워크스페이스에서 같은 원본을 올립니다. upstream 아이콘 파일(`apps/desktop/build/icon.*`)은 그대로 두고 `mac.icon`만 이쪽을 가리킵니다. 그래서 일일 merge에서 바이너리 충돌이 나지 않습니다.
 

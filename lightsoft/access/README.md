@@ -26,11 +26,11 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
 
 1. **Access 앱을 먼저 만듭니다** (Cloudflare 대시보드 → Zero Trust → Access → Applications → Add → Self-hosted).
    - 도메인: `lightica.lightsoft.dev`(경로 비움, 호스트 전체).
-   - 정책: Allow. 예) Emails ending in `@lightsoft.dev`, 외부 협업자는 Emails에 따로 추가.
-   - 로그인 방법: One-time PIN(기본) 또는 Google.
-   - 세션 길이: 7일~1개월 정도로 넉넉히. 세션이 끝나면 열어 둔 탭은 새로고침해야 합니다.
+   - 정책: Allow, Include에 Emails ending in `@lightsoft.dev`. 외부 협업자는 같은 정책의 Include에 Emails로 하나씩 추가합니다. Include 규칙끼리는 OR입니다.
+   - 로그인 방법: **이메일 One-time PIN 하나만** 둡니다. 외부 협업자도 회사 계정 없이 이메일로 들어올 수 있습니다. IdP가 하나뿐이므로 Instant Auth를 켜서 IdP 선택 화면을 건너뜁니다.
+   - 세션 길이: 7일. 세션이 끝나면 열어 둔 탭은 새로고침해야 합니다.
    - 만든 뒤 앱의 **Application Audience (AUD) Tag**와 Zero Trust **팀 도메인**(`<팀>.cloudflareaccess.com`)을 적어 둡니다.
-   - 로그인 화면을 Lightica로 꾸밉니다. 아래 "Access 로그인 화면"을 보세요.
+   - 로그인 화면은 `login-page.html` 템플릿을 이 앱에만 지정합니다. 아래 "Access 로그인 화면"을 보세요.
 2. **운영 backend에 설정을 넣습니다.** 운영 변경이므로 사용자 확인 후에 합니다.
    - `~/.multica/server/docker-compose.selfhost.yml`의 backend `environment:`는 목록에 있는 변수만 넘기므로 두 줄을 추가합니다. 일일 자동 업데이트는 이 파일을 다시 쓰지 않습니다.
      ```yaml
@@ -49,15 +49,11 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
 
 tailnet 밖 사용자가 처음 보는 화면은 Cloudflare가 띄우는 Access 로그인 화면(`<팀>.cloudflareaccess.com`)입니다. Access를 통과하면 Lightica 로그인 화면을 거치지 않고 바로 자동 로그인됩니다. Lightica 로그인 화면은 tailnet으로 접속할 때, 그리고 초대되지 않은 이메일이거나 직접 로그아웃한 뒤에만 보입니다. 그래서 Lightica처럼 보여야 하는 쪽은 Access 화면입니다.
 
-- **Free 플랜에서 꾸미기**: Zero Trust → Reusable components → Custom pages → Access login page → Manage에서 바꿉니다.
-  - 이름: `Lightica`
-  - 로고 URL: `https://raw.githubusercontent.com/lightsoft-dev/multica/lightsoft/dev/lightsoft/access/lightica-login-logo.png`. 로고는 로그인 전에 불러야 하므로 Access 뒤의 Lightica 주소에 두면 안 됩니다. 공개 레포의 이 파일을 씁니다.
-  - 배경색: `#fafafa`(Lightica 라이트 배경)
-  - 머리글·바닥글 문구
-
-  이 설정은 그 계정의 모든 Access 앱에 함께 적용됩니다(songtest 등에도 같은 화면이 나옵니다).
-- **화면을 통째로 바꾸기**(HTML·Liquid 템플릿): Pay-as-you-go 이상 플랜에서만 됩니다.
-- **Cloudflare 화면 없이 바로 Google로**: Access 앱의 로그인 방법을 Google(또는 Google Workspace) 하나만 두고 **Instant Auth**(API `auto_redirect_to_identity`)를 켭니다. 그러면 주소를 열 때 Google 계정 선택 → Lightica 순서로 가고, Cloudflare 화면은 나오지 않습니다. Google OAuth 클라이언트를 Cloudflare에 등록해야 합니다. 이메일 OTP를 쓰면 이메일을 입력하는 Cloudflare 화면이 남습니다.
+- **템플릿**: `login-page.html`. Lightica 로그인 카드와 같은 모양이고(로고, "Sign in to Lightica", 라이트·다크), 가운데 `<cf-access-authbox>`에 Cloudflare가 이메일 OTP 입력을 채웁니다. 이 요소는 정확히 한 번, Liquid 조건 밖에 있어야 합니다. 로그인 오류 문구(`message.text`)도 지우지 않습니다. 스크립트와 직접 만든 폼은 쓸 수 없습니다.
+- **지정**: Zero Trust → Reusable components → Custom pages에서 Login 유형으로 등록(API `POST /accounts/{id}/access/custom_pages`, `type: login`, `contract_version: 1`)하고, Lightica 앱의 Login page에만 지정합니다(앱의 `custom_pages`). **계정 기본값으로 두지 않습니다.** 기본값으로 두면 songtest 같은 다른 Access 앱도 "Sign in to Lightica"가 됩니다.
+- **로고**: 로그인 전에 불러야 하므로 Access 뒤의 Lightica 주소에는 둘 수 없습니다. 공개 레포의 `lightica-login-logo.png`를 `https://raw.githubusercontent.com/lightsoft-dev/multica/lightsoft/dev/lightsoft/access/lightica-login-logo.png`로 씁니다. 이 PR이 `lightsoft/dev`에 merge된 뒤에 보입니다.
+- **고칠 때**: 이 파일을 고친 뒤 같은 custom page를 갱신합니다(`PUT /accounts/{id}/access/custom_pages/{uid}`). 템플릿에 문제가 있어 렌더링이 안 되면 Access는 기본 화면으로 돌아가고, 정책 판단은 바뀌지 않습니다.
+- 템플릿은 Zero Trust Pay-as-you-go 이상에서만 됩니다. Free 플랜이면 Custom pages → Access login page에서 이름·로고 URL·배경색만 바꿀 수 있고, 이 설정은 모든 Access 앱에 적용됩니다.
 
 ## 끄기
 

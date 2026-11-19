@@ -6,7 +6,9 @@ import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/text";
 import { TextField } from "@/components/ui/text-field";
 import { Button } from "@/components/ui/button";
-import { MulticaLogo } from "@/components/brand/multica-logo";
+// Lightsoft fork (LIGH-258): the sign-in screens show Lightica, as the team web does.
+import { LighticaLogo } from "@/components/brand/lightica-logo";
+import { LIGHTICA_APP_NAME } from "@/lightica";
 import { useAuthStore } from "@/data/auth-store";
 import { i18n, useT } from "@/lib/i18n";
 import { mapAuthError } from "@/lib/auth-error";
@@ -43,10 +45,10 @@ export default function Login() {
       >
         <View className="flex-1 justify-center px-6 gap-6">
           <View className="items-center gap-3">
-            <MulticaLogo size={30} />
+            <LighticaLogo size={48} />
             <View className="gap-1 items-center">
               <Text className="text-2xl font-semibold text-foreground">
-                {t("login.title")}
+                {t("login.title").replace("Multica", LIGHTICA_APP_NAME)}
               </Text>
               <Text className="text-sm text-muted-foreground text-center">
                 {t("login.subtitle")}

@@ -27,6 +27,7 @@
 - tailnet 밖 접속(Cloudflare Tunnel + Access, Access 계정으로 자동 로그인)은 `lightsoft/access/README.md`에 설정 순서·로그인 규칙·끄는 법이 있습니다. 브라우저 전용이고, 터미널은 그 경로로 열지 않습니다.
 - 프로젝트 터미널(owner/admin 전용)은 `lightsoft/terminal/README.md`에 설치·규칙이 있습니다. 팀 클라이언트 이미지와 별개로 `bash lightsoft/terminal/install.sh`로 갱신합니다.
 - 팀 데스크톱 앱 **Lightica**(팀 클라이언트 서버에 붙는 서명·공증된 macOS 앱)의 빌드·배포는 `lightsoft/desktop/README.md`에 있습니다. 릴리스는 `lightsoft/desktop/release.sh`가 `/lightica/` 피드에 게시하고, 설치된 앱은 그 피드에서 새 버전을 찾습니다.
+- 팀 모바일 앱 **Lightica**(iOS, 팀 클라이언트 서버에 붙는 `apps/mobile` 빌드)의 신원·빌드·설치는 `lightsoft/mobile/README.md`에 있습니다. 공식 Multica 앱과 한 iPhone에 같이 설치되고, iPhone에서 Tailscale이 켜져 있어야 합니다(LIGH-258).
 - 팀 빌드 버전은 `<upstream 릴리스>-<YYYYMMDD>[.N]`(예: `0.11.0-20261119`)이고 `lightsoft/version.sh` 한 곳에서 계산합니다. Lightica와 번들 CLI가 이 버전을 씁니다.
 - 구독 한도(팀 → 구독 한도)는 `lightsoft/usage/README.md`에 설치·계정 설정·규칙이 있습니다. Claude Max와 Codex 계정의 세션·주간 한도 사용률과 추이를 보여 줍니다. 서비스는 `bash lightsoft/usage/install.sh`로 갱신하고, 화면은 팀 클라이언트 이미지에 들어 있습니다.
 - 시크릿 매니저(팀 → 시크릿)는 `lightsoft/secrets/README.md`에 설치·규칙·에이전트 사용법이 있습니다. 서비스는 `bash lightsoft/secrets/install.sh`로 갱신하고, 화면은 팀 클라이언트 이미지에 들어 있습니다. 마스터 키(`~/.multica/secrets/master.key`)는 DB와 따로 오프라인에 보관합니다.

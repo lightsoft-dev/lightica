@@ -1,0 +1,25 @@
+{
+  "workspace_id": "00000000-0000-4000-8000-000000000000",
+  "accounts": [
+    {
+      "id": "claude-max",
+      "name": "Claude Max",
+      "provider": "claude",
+      "runtime_ids": ["00000000-0000-4000-8000-0000000000c1"]
+    },
+    {
+      "id": "codex-main",
+      "name": "Codex",
+      "provider": "codex",
+      "codex_home": "~/.codex",
+      "runtime_ids": ["00000000-0000-4000-8000-0000000000d1"]
+    },
+    {
+      "id": "codex-work",
+      "name": "Codex (업무 계정)",
+      "provider": "codex",
+      "codex_home": "~/.codex-work",
+      "runtime_ids": []
+    }
+  ]
+}

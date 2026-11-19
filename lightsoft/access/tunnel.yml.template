@@ -14,6 +14,9 @@ ingress:
     path: ^/lightsoft-secrets(/|$)
     service: http://127.0.0.1:13300
   - hostname: __HOST__
+    path: ^/lightsoft-usage(/|$)
+    service: http://127.0.0.1:13500
+  - hostname: __HOST__
     path: ^/lightica(/|$)
     service: http://127.0.0.1:13400
   - hostname: __HOST__

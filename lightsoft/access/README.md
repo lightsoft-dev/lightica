@@ -7,6 +7,7 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
          ──▶ cloudflared 터널 (launchd dev.lightsoft.lightica-tunnel) ──▶ 이 맥
               ├─ /api /ws /v1 /health  → 127.0.0.1:8080  (운영 backend)
               ├─ /lightsoft-secrets    → 127.0.0.1:13300
+              ├─ /lightsoft-usage      → 127.0.0.1:13500
               ├─ /lightica             → 127.0.0.1:13400
               ├─ /lightsoft-term       → 404 (터미널은 tailnet 전용)
               └─ /                     → 127.0.0.1:13000 (팀 웹)
@@ -39,7 +40,7 @@ tailnet 밖에서도 팀 클라이언트를 브라우저로 쓰게 하는 구성
      ```
    - `~/.multica/server/.env`에 `LIGHTSOFT_CF_ACCESS_TEAM_DOMAIN=<팀>.cloudflareaccess.com`과 `LIGHTSOFT_CF_ACCESS_AUD=<AUD 태그>`를 넣습니다. 앱이 여러 개면 AUD를 쉼표로 이어 씁니다. `CORS_ALLOWED_ORIGINS`에는 `https://lightica.lightsoft.dev`를 추가합니다. 실시간 WebSocket이 이 Origin을 검사합니다.
    - backend만 다시 만듭니다: `cd ~/.multica/server && docker compose -f docker-compose.selfhost.yml up -d --no-deps backend`. 잠깐 끊깁니다.
-3. **시크릿 서비스 Origin**: `lightsoft/secrets/dev.lightsoft.multica-secrets.plist`의 `LIGHTSOFT_SECRETS_ALLOWED_ORIGINS`에 새 주소가 들어 있습니다(:3444, localhost:13100, `https://lightica.lightsoft.dev`). 주소를 바꾸면 이 값도 바꾸고 `bash lightsoft/secrets/install.sh`를 실행합니다.
+3. **시크릿 서비스 Origin**: `lightsoft/secrets/dev.lightsoft.multica-secrets.plist`의 `LIGHTSOFT_SECRETS_ALLOWED_ORIGINS`에 새 주소가 들어 있습니다(:3444, localhost:13100, `https://lightica.lightsoft.dev`). 주소를 바꾸면 이 값도 바꾸고 `bash lightsoft/secrets/install.sh`를 실행합니다. 구독 한도 서비스도 같습니다(`lightsoft/usage/dev.lightsoft.multica-usage.plist`의 `LIGHTSOFT_USAGE_ALLOWED_ORIGINS`, `bash lightsoft/usage/install.sh`).
 4. **터널**: `LIGHTICA_HOST=lightica.lightsoft.dev bash lightsoft/access/install.sh`
    - 첫 실행에서 이름 있는 터널 `lightica`와 DNS 레코드를 만들고, `~/.cloudflared/lightica.yml`과 launchd `dev.lightsoft.lightica-tunnel`을 둡니다. 기존 songtest·crawler 터널과는 별도 프로세스입니다.
    - 실행이 끝나면 바깥에서 `https://<주소>/health`를 불러 Access가 막는지 확인합니다. 200이 오면, 즉 Access 없이 origin이 열려 있으면 터널을 바로 내리고 실패합니다.

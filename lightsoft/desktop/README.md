@@ -114,8 +114,10 @@ DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Int
 
 1. `build.sh`로 빌드하고 검사합니다(위 "빌드").
 2. dmg, zip, blockmap을 피드 폴더에 복사하고 `releases.json`과 `index.html`을 갱신합니다. 오래된 릴리스는 최근 5개 버전만 파일을 남기고 기록에 "정리됨"으로 표시합니다.
-3. 마지막에 `latest-mac.yml`을 바꿉니다. 이때부터 설치된 앱이 새 버전을 봅니다. `latest-mac.yml`에는 빌드의 서명 팀 ID(`lighticaSigningTeam`)를 덧붙입니다.
+3. 마지막에 `latest-mac.yml`을 바꿉니다. 이때부터 설치된 앱이 새 버전을 봅니다. `latest-mac.yml`에는 빌드의 서명 팀 ID(`lighticaSigningTeam`)를 덧붙입니다. 파일의 sha512와 size는 게시한 파일로 다시 씁니다. `build.sh`가 electron-builder 다음에 dmg를 서명·staple해서, electron-builder가 적은 dmg 값은 맞지 않기 때문입니다.
 4. 설치 안내 이슈(LIGH-116)의 "현재 배포 파일" 절을 새 버전, 파일, SHA-256으로 바꿉니다. `multica` CLI 로그인이 필요합니다. `--no-issue`로 건너뜁니다.
+
+한 피드에는 `release.sh`를 한 번에 하나만 실행합니다. 이미 실행 중이면 시작 단계에서 멈춥니다(피드 폴더의 `.release.pid`). 둘이 같이 돌면 둘 다 같은 버전을 고르고, 나중 것이 먼저 게시된 파일과 SHA-256을 덮어씁니다.
 
 환경변수: `LIGHTICA_FEED_DIR`(피드 폴더), `LIGHTICA_FEED_URL`, `LIGHTICA_INSTALL_ISSUE`, `DESKTOP_BUILD_VERSION`. 서명·공증 변수는 `build.sh`와 같습니다.
 

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Regenerates Lightica's icons from lightsoft/desktop/icon-source.png (dark
 # artwork on a light background): the macOS app icon (apps/desktop/build/lightica/)
-# and the team web's home-screen icons (apps/web/public/lightica/). Upstream's
+# and the team web's home-screen icons (apps/web/public/assets/lightica/). Upstream's
 # icon files stay untouched so the daily release merge never hits a binary
 # conflict; electron-builder.yml (`mac.icon`) and apps/web/features/lightsoft/brand.ts
-# point here. The web favicon (apps/web/public/lightica/favicon.svg) is vector
+# point here. The web favicon (apps/web/public/assets/lightica/favicon.svg) is vector
 # and drawn by hand from the same mark as packages/ui/components/common/lightica-icon.tsx.
 # macOS only: ImageMagick cuts and places the artwork, iconutil packs the .icns.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 out="$here/../../apps/desktop/build/lightica"
-web="$here/../../apps/web/public/lightica"
+web="$here/../../apps/web/public/assets/lightica"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

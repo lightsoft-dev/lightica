@@ -52,7 +52,7 @@ describe("UpdateNotification", () => {
     act(() => updateDownloaded({ version: "0.11.0-20261119" }));
 
     expect(screen.queryByRole("button", { name: "Later" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "See changelog" }));
+    fireEvent.click(screen.getByRole("button", { name: "릴리스 기록" }));
 
     expect(mocks.openExternal).toHaveBeenCalledWith(LIGHTICA_RELEASES_URL);
   });
@@ -69,7 +69,7 @@ describe("UpdateNotification", () => {
       act(() => downloadState(manual));
 
       expect(screen.getByText("Lightica v0.11.0-20261120")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Restart now" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "지금 업데이트" })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "다운로드" }));
       expect(mocks.openExternal).toHaveBeenCalledWith(manual.downloadUrl);
       fireEvent.click(screen.getByRole("button", { name: "릴리스 기록" }));
@@ -95,11 +95,12 @@ describe("UpdateNotification", () => {
     });
   });
 
-  it("still installs the update immediately from the primary action", () => {
+  it("quits and installs a downloaded update from 지금 업데이트", () => {
     render(<UpdateNotification />);
-    act(() => updateDownloaded({ version: "0.4.27" }));
+    act(() => updateDownloaded({ version: "0.11.0-20261121" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Restart now" }));
+    expect(screen.getByText("Lightica v0.11.0-20261121")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "지금 업데이트" }));
 
     expect(mocks.installUpdate).toHaveBeenCalledOnce();
   });

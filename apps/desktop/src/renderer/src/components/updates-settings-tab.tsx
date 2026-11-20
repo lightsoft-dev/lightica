@@ -186,9 +186,16 @@ export function UpdatesSettingsTab() {
                 </p>
               )}
               {state.status === "downloaded" && (
-                <p role="status" className="mt-2 inline-flex items-center gap-1.5">
+                <p role="status" className="mt-2 inline-flex flex-wrap items-center gap-1.5">
                   <Check className="size-3.5 shrink-0 text-success" />
                   {t(($) => $.desktop.updates.download_ready, { version: state.latestVersion })}
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => void window.updater.installUpdate()}
+                  >
+                    {LIGHTICA_UPDATE_COPY.installNow}
+                  </Button>
                 </p>
               )}
             </>

@@ -127,10 +127,12 @@ DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Int
 
 설치된 Lightica는 설정 → 업데이트의 자동 업데이트가 켜져 있으면(기본값) 시작 5초 뒤와 1시간마다 피드의 `latest-mac.yml`을 확인합니다. 같은 화면의 "지금 확인"으로도 확인합니다. 새 버전이 있으면:
 
-- **자동 설치**: 실행 중인 앱과 새 빌드가 **같은 Developer ID 팀**으로 서명돼 있으면 zip을 받아 두고 "Update ready → Restart now"를 띄웁니다. 앱을 종료할 때도 설치됩니다. Squirrel.Mac은 같은 팀 서명이 아니면 설치를 거부하므로, 앱이 자기 서명(`codesign`)과 `latest-mac.yml`의 `lighticaSigningTeam`을 먼저 비교합니다(`apps/desktop/src/main/lightica-update.ts`).
+- **자동 설치**: 실행 중인 앱과 새 빌드가 **같은 Developer ID 팀**으로 서명돼 있으면 zip을 백그라운드에서 받은 뒤 "Lightica vX — 업데이트가 준비됐습니다 → **지금 업데이트**" 알림을 띄웁니다. 같은 버튼은 설정 → 업데이트에도 있습니다. 누르면 앱이 종료되고, Squirrel.Mac이 Applications의 앱을 바꾼 뒤 새 버전을 다시 엽니다(LIGH-268). 누르지 않아도 앱을 종료할 때 설치됩니다. Squirrel.Mac은 같은 팀 서명이 아니면 설치를 거부하므로, 앱이 자기 서명(`codesign`)과 `latest-mac.yml`의 `lighticaSigningTeam`을 먼저 비교합니다(`apps/desktop/src/main/lightica-update.ts`).
+  - 설정 → 데몬의 "앱 종료 시 자동 중지"가 꺼져 있으면(기본값) 데몬은 앱과 함께 멈추지 않습니다. 새 앱이 뜨면 번들 CLI 버전이 바뀐 것을 보고, 돌던 태스크가 끝난 뒤 데몬을 새 CLI로 다시 띄웁니다(`daemon-manager.ts`의 `ensureRunningDaemonVersionMatches`). 켜져 있으면 종료 전에 데몬을 멈추고, 돌던 태스크가 있으면 먼저 묻습니다.
 - **다운로드 안내**: 그 밖의 경우(ad-hoc 빌드, 다른 팀으로 서명된 빌드)는 "Lightica vX — 다운로드" 알림만 띄웁니다. 다운로드를 누르면 브라우저로 dmg를 엽니다.
 - 업데이트 다운로드 캐시는 `~/Library/Caches/lightica-updater`입니다(`extraMetadata.name: lightica`). 공식 Multica 앱의 캐시와 겹치지 않습니다.
 - 이 기능은 이 버전 체계가 들어간 빌드부터 동작합니다. 그 전 빌드(`0.10.0-…`, `0.11.0-26-g…`)는 업데이트 확인이 막혀 있으니 한 번은 손으로 설치합니다.
+- `0.11.0-20261119`까지는 ad-hoc 서명(`codesign -dv`에 `TeamIdentifier=not set`)이라 새 버전이 있어도 "다운로드" 알림만 뜹니다. Squirrel.Mac은 ad-hoc 앱을 제자리에서 바꿀 수 없습니다. **Lightsoft Developer ID로 서명한 첫 빌드 `0.11.0-20261120`**을 한 번 손으로 설치하면, 그다음 게시부터 "지금 업데이트"로 설치됩니다.
 
 ### upstream 업데이트를 받지 않는 설계
 
@@ -148,7 +150,7 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 
 ### 팀원 업데이트 방법
 
-- 알림의 **Restart now**를 누르거나 앱을 종료했다가 다시 켭니다(자동 설치).
+- 알림의 **지금 업데이트**를 누릅니다. 앱이 종료되고 새 버전이 설치된 뒤 다시 열립니다. 앱을 종료했다가 다시 켜도 설치됩니다.
 - "다운로드" 알림이면: dmg를 받아 열고, Lightica를 종료한 뒤 Applications의 Lightica를 덮어씁니다. 로그인과 설정은 그대로 남습니다.
 - 직접 받으려면 릴리스 페이지(`https://mac-studio.taile83671.ts.net:3444/lightica/`)를 엽니다.
 

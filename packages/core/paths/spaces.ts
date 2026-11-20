@@ -8,6 +8,7 @@
 
 export type AppSpaceId =
   | "work"
+  | "docs"
   | "team"
   | "chat"
   | "autopilots"
@@ -19,6 +20,7 @@ export type RailSpaceId = Exclude<AppSpaceId, "settings">;
 /** Spaces in rail order. */
 export const RAIL_SPACES: readonly RailSpaceId[] = [
   "work",
+  "docs",
   "team",
   "chat",
   "autopilots",
@@ -35,10 +37,13 @@ const SPACE_BY_SEGMENT: Record<string, AppSpaceId> = {
   squads: "team",
   members: "team",
   skills: "team",
+  docs: "docs",
   runtimes: "team",
   usage: "team",
   // Lightsoft team client: secrets page (apps/web/features/lightsoft/secrets).
   secrets: "team",
+  // Lightsoft team client: subscription limits (packages/views/lightsoft/usage).
+  limits: "team",
   chat: "chat",
   autopilots: "autopilots",
   settings: "settings",

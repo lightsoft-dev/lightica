@@ -61,8 +61,34 @@ export function ymlVersion(yml) {
   return /^version:\s*['"]?([^'"\s]+)/m.exec(yml)?.[1] ?? null;
 }
 
-function sha256(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+/**
+ * Rewrites the sha512/size of the files latest-mac.yml lists from `digests`
+ * (name → { sha512, size }). build.sh signs and staples the dmg after
+ * electron-builder wrote the yml, so its entry would describe the dmg as it
+ * was before that.
+ */
+export function withFileDigests(yml, digests) {
+  const path = /^path:\s*['"]?([^'"\s]+)/m.exec(yml)?.[1];
+  let entry = null;
+  return yml
+    .split("\n")
+    .map((line) => {
+      const url = /^\s+- url:\s*['"]?([^'"\s]+)/.exec(line);
+      if (url) {
+        entry = digests[url[1]] ?? null;
+        return line;
+      }
+      if (!/^\s/.test(line)) entry = null;
+      if (entry && /^\s+sha512:/.test(line)) return line.replace(/sha512:.*/, `sha512: ${entry.sha512}`);
+      if (entry && /^\s+size:/.test(line)) return line.replace(/size:.*/, `size: ${entry.size}`);
+      if (/^sha512:/.test(line) && digests[path]) return `sha512: ${digests[path].sha512}`;
+      return line;
+    })
+    .join("\n");
+}
+
+function digest(path, algorithm, encoding) {
+  return createHash(algorithm).update(readFileSync(path)).digest(encoding);
 }
 
 // Write next to the target under a dot name (lightica-feed never serves those),
@@ -113,13 +139,17 @@ export function publish(feed, { dist, version, arch, team, upstream, commit, kee
     upstream,
     commit,
     signingTeam: team || null,
-    files: artifacts.map((name) => ({ name, size: statSync(join(feed, name)).size, sha256: sha256(join(feed, name)) })),
+    files: artifacts.map((name) => ({ name, size: statSync(join(feed, name)).size, sha256: digest(join(feed, name), "sha256", "hex") })),
   };
+  // electron-updater's format: base64 sha512.
+  const digests = Object.fromEntries(
+    [names.dmg, names.zip].map((name) => [name, { sha512: digest(join(feed, name), "sha512", "base64"), size: statSync(join(feed, name)).size }]),
+  );
   const plan = planReleases(readReleases(feed), record, keep);
   writeAtomic(join(feed, "releases.json"), `${JSON.stringify({ releases: plan.releases }, null, 2)}\n`);
   writeAtomic(join(feed, "index.html"), renderIndex(plan.releases, baseUrl));
   // Last: this is what installed apps read.
-  writeAtomic(join(feed, ymlName), withSigningTeam(yml, team));
+  writeAtomic(join(feed, ymlName), withSigningTeam(withFileDigests(yml, digests), team));
   for (const name of plan.prune) if (existsSync(join(feed, name))) unlinkSync(join(feed, name));
   return record;
 }

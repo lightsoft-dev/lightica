@@ -1,3 +1,5 @@
+import { DocsHomePage } from "@multica/views/docs";
+import { DocRoute, DocHistoryRoute, DocFolderRoute } from "./pages/doc-pages";
 import { useEffect, useLayoutEffect } from "react";
 import { createMemoryRouter, Outlet, useLocation, useMatches } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
@@ -17,6 +19,7 @@ import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { DashboardPage } from "@multica/views/dashboard";
 import { SecretsPage } from "@multica/views/lightsoft/secrets";
+import { SubscriptionLimitsPage } from "@multica/views/lightsoft/usage";
 import { AutopilotsPage } from "@multica/views/autopilots/components";
 import { MyIssuesPage } from "@multica/views/my-issues";
 import { SkillsPage } from "@multica/views/skills";
@@ -210,6 +213,10 @@ export const appRoutes: RouteObject[] = [
             element: <RuntimeSettingsPage />,
             handle: { title: "Runtime" },
           },
+          {path: "docs", element: <DocsHomePage />, handle: {title: "Docs"}},
+          {path: "docs/folders/:id", element: <DocFolderRoute />, handle: {title: "Folder"}},
+          {path: "docs/:id", element: <DocRoute />, handle: {title: "Doc"}},
+          {path: "docs/:id/history", element: <DocHistoryRoute />, handle: {title: "History"}},
           { path: "skills", element: <SkillsPage />, handle: { title: "Skills" } },
           {
             path: "skills/:id",
@@ -265,6 +272,12 @@ export const appRoutes: RouteObject[] = [
             path: "usage",
             element: <DashboardPage />,
             handle: { title: "Usage" },
+          },
+          // Lightica: subscription limits (LIGH-113, lightsoft/usage).
+          {
+            path: "limits",
+            element: <SubscriptionLimitsPage />,
+            handle: { title: "구독 한도" },
           },
           // Lightica: team secrets (LIGH-112, lightsoft/secrets).
           {

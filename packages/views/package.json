@@ -11,6 +11,7 @@
   "exports": {
     "./navigation": "./navigation/index.ts",
     "./lightsoft/secrets": "./lightsoft/secrets/index.ts",
+    "./lightsoft/usage": "./lightsoft/usage/index.ts",
     "./dev-toolbar": "./dev-toolbar/index.ts",
     "./common/actor-avatar": "./common/actor-avatar.tsx",
     "./common/appearance-sync": "./common/appearance-sync.tsx",
@@ -88,7 +89,8 @@
     "./locales/fr": "./locales/fr.ts",
     "./locales/es": "./locales/es.ts",
     "./locales/ru": "./locales/ru.ts",
-    "./locales/*": "./locales/*"
+    "./locales/*": "./locales/*",
+    "./docs": "./docs/index.ts"
   },
   "dependencies": {
     "@base-ui/react": "catalog:",

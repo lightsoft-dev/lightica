@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, BarChart3, BookOpenText, Bot, KeyRound, MessageSquare, Monitor, Plus, User, UserPlus, Users } from "@multica/ui/icons";
+import { ArrowUpRight, BarChart3, BookOpenText, Bot, Gauge, KeyRound, MessageSquare, Monitor, Plus, User, UserPlus, Users } from "@multica/ui/icons";
 import { DropdownMenuItem } from "@multica/ui/components/ui/dropdown-menu";
 import { cn } from "@multica/ui/lib/utils";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -249,6 +249,7 @@ export function TeamPanel() {
   const currentWorkspace = useCurrentWorkspace();
   const wsId = currentWorkspace?.id ?? "";
   const secretsPath = currentWorkspace ? `/${encodeURIComponent(currentWorkspace.slug)}/secrets` : "";
+  const limitsPath = currentWorkspace ? `/${encodeURIComponent(currentWorkspace.slug)}/limits` : "";
   const userId = useAuthStore((s) => s.user?.id);
   const agentsScope = useAgentsViewStore((s) => s.scope);
   const setAgentsScope = useAgentsViewStore((s) => s.setScope);
@@ -450,6 +451,15 @@ export function TeamPanel() {
               label={t(($) => $.nav.usage)}
               active={isPathWithin(pathname, p.usage())}
             />
+            {/* Lightsoft team client: subscription limits served by lightsoft/usage. */}
+            {limitsPath && (
+              <PanelLink
+                href={limitsPath}
+                icon={<Gauge />}
+                label="구독 한도"
+                active={isPathWithin(pathname, limitsPath)}
+              />
+            )}
             {/* Lightsoft team client: secrets page served by apps/web. */}
             {secretsPath && (
               <PanelLink

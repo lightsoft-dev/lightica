@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lightsoft — daily update of the self-hosted Multica on the Mac Studio (LIGH-99, LIGH-190).
 #
-#   1. Fork mirror  fast-forward lightsoft-dev/multica `main` to upstream `main`,
+#   1. Fork mirror  fast-forward lightsoft-dev/lightica `main` to upstream `main`,
 #                   and push upstream's release tags (v*) the fork does not have yet.
 #   2. Production   follow the newest upstream *release* (pinned MULTICA_IMAGE_TAG):
 #                   merge it into `lightsoft/dev` locally → build the fork backend
@@ -106,7 +106,7 @@ wait_backend() {  # $1 = expected commit (empty: any healthy)
 prepare_repo() {
   if [ ! -d "$REPO_DIR/.git" ]; then
     log "cloning ops checkout into $REPO_DIR"
-    git clone -q https://github.com/lightsoft-dev/multica.git "$REPO_DIR" || return 1
+    git clone -q https://github.com/lightsoft-dev/lightica.git "$REPO_DIR" || return 1
     git -C "$REPO_DIR" remote add upstream "https://github.com/$UPSTREAM_REPO.git"
   fi
   git -C "$REPO_DIR" fetch -q --prune origin \

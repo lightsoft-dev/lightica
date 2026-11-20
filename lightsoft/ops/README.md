@@ -27,7 +27,7 @@
 
 `lightsoft/dev`가 merge하는 대상은 포크 `main`이 아니라 릴리스 태그입니다. 포크 `main`은 upstream에 무엇이 들어오는지 보는 참고용 미러입니다. 릴리스 태그를 포크에도 올려 두므로, 포크만 clone한 체크아웃에서도 upstream remote 없이 `git merge vX.Y.Z`로 수동 merge할 수 있습니다.
 
-주의: upstream의 `.github/workflows/release.yml`은 `v*.*.*` 태그 push로 실행되고, 일부 job(Docker 이미지 빌드·ghcr push)은 저장소 소유자를 가리지 않습니다. 지금 포크는 GitHub Actions가 한 번도 실행되지 않은 상태(포크 워크플로 미활성)라 태그를 push해도 아무것도 돌지 않습니다. 포크에서 Actions를 켜게 되면 먼저 `gh workflow disable release.yml --repo lightsoft-dev/multica`로 Release 워크플로를 꺼 두세요.
+주의: upstream의 `.github/workflows/release.yml`은 `v*.*.*` 태그 push로 실행되고, 일부 job(Docker 이미지 빌드·ghcr push)은 저장소 소유자를 가리지 않습니다. 지금 포크는 GitHub Actions가 한 번도 실행되지 않은 상태(포크 워크플로 미활성)라 태그를 push해도 아무것도 돌지 않습니다. 포크에서 Actions를 켜게 되면 먼저 `gh workflow disable release.yml --repo lightsoft-dev/lightica`로 Release 워크플로를 꺼 두세요.
 
 ## 파일 위치 (Mac Studio)
 

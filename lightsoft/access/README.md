@@ -54,7 +54,7 @@ tailnet 밖 사용자가 처음 보는 화면은 Cloudflare가 띄우는 Access 
 
 - **템플릿**: `login-page.html`. Lightica 로그인 카드와 같은 모양이고(로고, "Sign in to Lightica", 라이트·다크), 가운데 `<cf-access-authbox>`에 Cloudflare가 이메일 OTP 입력을 채웁니다. 이 요소는 정확히 한 번, Liquid 조건 밖에 있어야 합니다. 로그인 오류 문구(`message.text`)도 지우지 않습니다. 스크립트와 직접 만든 폼은 쓸 수 없습니다.
 - **지정**: Zero Trust → Reusable components → Custom pages에서 Login 유형으로 등록(API `POST /accounts/{id}/access/custom_pages`, `type: login`, `contract_version: 1`)하고, Lightica 앱의 Login page에만 지정합니다(앱의 `custom_pages`). **계정 기본값으로 두지 않습니다.** 기본값으로 두면 songtest 같은 다른 Access 앱도 "Sign in to Lightica"가 됩니다.
-- **로고**: 로그인 전에 불러야 하므로 Access 뒤의 Lightica 주소에는 둘 수 없습니다. 공개 레포의 `lightica-login-logo.png`를 `https://raw.githubusercontent.com/lightsoft-dev/multica/lightsoft/dev/lightsoft/access/lightica-login-logo.png`로 씁니다. 이 PR이 `lightsoft/dev`에 merge된 뒤에 보입니다.
+- **로고**: 로그인 전에 불러야 하므로 Access 뒤의 Lightica 주소에는 둘 수 없습니다. 공개 레포의 `lightica-login-logo.png`를 `https://raw.githubusercontent.com/lightsoft-dev/lightica/lightsoft/dev/lightsoft/access/lightica-login-logo.png`로 씁니다. 이 PR이 `lightsoft/dev`에 merge된 뒤에 보입니다.
 - **고칠 때**: 이 파일을 고친 뒤 같은 custom page를 갱신합니다(`PUT /accounts/{id}/access/custom_pages/{uid}`). 템플릿에 문제가 있어 렌더링이 안 되면 Access는 기본 화면으로 돌아가고, 정책 판단은 바뀌지 않습니다.
 - 템플릿은 Zero Trust Pay-as-you-go 이상에서만 됩니다. Workers·R2 유료 구독과는 별개입니다. 템플릿 HTML을 대시보드 세션에서 API로 직접 보내면 대시보드 WAF가 XSS로 보고 막습니다(403 "Sorry, you have been blocked"). 대시보드 화면의 편집기나 API 토큰으로 넣습니다. Free 플랜이면 Custom pages → Access login page에서 이름·로고 URL·배경색만 바꿀 수 있고, 이 설정은 모든 Access 앱에 적용됩니다.
 

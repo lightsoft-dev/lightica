@@ -38,7 +38,7 @@ docker build -f Dockerfile \
   --build-arg DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --label org.opencontainers.image.version="$version" \
   --label org.opencontainers.image.revision="$commit" \
-  --label org.opencontainers.image.source=https://github.com/lightsoft-dev/multica \
+  --label org.opencontainers.image.source=https://github.com/lightsoft-dev/lightica \
   --label dev.lightsoft.upstream-release="$release" \
   -t "$IMAGE:$version" -t "$IMAGE:$release" \
   . >&2

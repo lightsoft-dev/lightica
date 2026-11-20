@@ -1,3 +1,3 @@
-module github.com/lightsoft-dev/multica/lightsoft/usage
+module github.com/lightsoft-dev/lightica/lightsoft/usage
 
 go 1.26.0

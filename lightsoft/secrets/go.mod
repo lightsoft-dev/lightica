@@ -1,4 +1,4 @@
-module github.com/lightsoft-dev/multica/lightsoft/secrets
+module github.com/lightsoft-dev/lightica/lightsoft/secrets
 
 go 1.26.0
 

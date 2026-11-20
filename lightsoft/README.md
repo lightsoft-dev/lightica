@@ -3,6 +3,7 @@
 이 브랜치(`lightsoft/dev`)는 팀 전용 기능을 넣는 작업 브랜치입니다. 기준은 **운영 Multica가 쓰는 upstream 릴리스 태그**입니다.
 매일 05:00 자동 작업이 upstream 최신 릴리스를 이 브랜치에 merge하고, 이 브랜치로 운영 backend를 다시 빌드해 올립니다(`lightsoft/ops/README.md`). upstream `main`은 이 브랜치에 merge하지 마세요. 운영 API보다 앞서서 404가 납니다.
 팀 웹 클라이언트는 따로 띄우고, **API와 DB는 Mac Studio에서 도는 운영 Multica를 씁니다.** 운영 backend 이미지는 이 브랜치로 빌드한 것입니다(아래 "포크 backend").
+레포는 https://github.com/lightsoft-dev/lightica 입니다(2026-11-20에 `lightsoft-dev/multica`에서 이름을 바꿨습니다, LIGH-273). 옛 주소는 GitHub가 리다이렉트하지만, 조직에 `multica`라는 저장소가 새로 생기면(예: upstream을 다시 fork) 리다이렉트가 끊기므로 remote와 문서는 새 주소를 씁니다.
 
 | | 주소 | 내용 |
 |---|---|---|

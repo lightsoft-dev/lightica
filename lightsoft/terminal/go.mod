@@ -1,4 +1,4 @@
-module github.com/lightsoft-dev/multica/lightsoft/terminal
+module github.com/lightsoft-dev/lightica/lightsoft/terminal
 
 go 1.26
 

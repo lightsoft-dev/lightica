@@ -184,9 +184,9 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 
 ## 아이콘
 
-원본은 `lightsoft/desktop/icon-source.png`(밝은 배경 위 어두운 도형, 1024px)입니다. 바꾼 뒤 `lightsoft/desktop/make-icons.sh`(ImageMagick 필요)로 `apps/desktop/build/lightica/`와 팀 웹 아이콘 `apps/web/public/lightica/`를 다시 만듭니다. 스크립트는 원본의 어두운 부분만 잘라 macOS 아이콘 규격(1024px 캔버스 가운데 824px 흰 둥근 사각형)에 640px로 얹습니다. 원본 배경색과 여백은 결과에 남지 않습니다.
+원본은 `lightsoft/desktop/icon-source.png`(밝은 배경 위 어두운 도형, 1024px)입니다. 바꾼 뒤 `lightsoft/desktop/make-icons.sh`(ImageMagick 필요)로 `apps/desktop/build/lightica/`와 팀 웹 아이콘 `apps/web/public/assets/lightica/`를 다시 만듭니다. 스크립트는 원본의 어두운 부분만 잘라 macOS 아이콘 규격(1024px 캔버스 가운데 824px 흰 둥근 사각형)에 640px로 얹습니다. 원본 배경색과 여백은 결과에 남지 않습니다.
 
-팀 웹(LIGH-257)의 favicon·홈 화면 아이콘·설치 이름도 Lightica입니다. `apps/web/public/lightica/`의 PNG(`icon-192/512`, `apple-touch-icon`, `icon-maskable-512`)는 위 스크립트가 만들고, `favicon.svg`는 벡터라 손으로 그렸습니다(`packages/ui/components/common/lightica-icon.tsx`와 같은 도형). 경로는 `apps/web/features/lightsoft/brand.ts` 한 곳에 있고 `app/layout.tsx`, `app/manifest.ts`, `app/favicon.ico/route.ts`가 그걸 씁니다. upstream의 `public/favicon.svg`, `public/icons/`는 덮어쓰지 않습니다. upstream이 자주 바꾸고(`scripts/brand/sync.mjs` 검사도 있음) 일일 merge에서 충돌이 나기 때문입니다. 브라우저 탭 제목(`… | Multica`)은 upstream 그대로입니다.
+팀 웹(LIGH-257)의 favicon·홈 화면 아이콘·설치 이름도 Lightica입니다. `apps/web/public/assets/lightica/`의 PNG(`icon-192/512`, `apple-touch-icon`, `icon-maskable-512`)는 위 스크립트가 만들고, `favicon.svg`는 벡터라 손으로 그렸습니다(`packages/ui/components/common/lightica-icon.tsx`와 같은 도형). 경로는 `apps/web/features/lightsoft/brand.ts` 한 곳에 있고 `app/layout.tsx`, `app/manifest.ts`, `app/favicon.ico/route.ts`가 그걸 씁니다. `/lightica` 아래에는 두지 않습니다. :3444와 Cloudflare Tunnel에서 그 경로는 릴리스 피드(:13400)로 가서 404가 납니다(`brand.test.ts`가 검사). upstream의 `public/favicon.svg`, `public/icons/`는 덮어쓰지 않습니다. upstream이 자주 바꾸고(`scripts/brand/sync.mjs` 검사도 있음) 일일 merge에서 충돌이 나기 때문입니다. 브라우저 탭 제목(`… | Multica`)은 upstream 그대로입니다.
 
 워크스페이스 아이콘(사이드바에 보이는 워크스페이스 이미지)은 앱이 아니라 서버 데이터입니다. 설정 → 워크스페이스에서 같은 원본을 올립니다. upstream 아이콘 파일(`apps/desktop/build/icon.*`)은 그대로 두고 `mac.icon`만 이쪽을 가리킵니다. 그래서 일일 merge에서 바이너리 충돌이 나지 않습니다.
 

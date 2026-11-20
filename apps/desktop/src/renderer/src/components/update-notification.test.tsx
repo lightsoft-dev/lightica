@@ -95,6 +95,15 @@ describe("UpdateNotification", () => {
     });
   });
 
+  it("offers the update in a window opened after the download", async () => {
+    initialDownloadState = { status: "downloaded", version: "0.11.1-20261121" };
+    render(<UpdateNotification />);
+
+    expect(await screen.findByText("Lightica v0.11.1-20261121")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "지금 업데이트" }));
+    expect(mocks.installUpdate).toHaveBeenCalledOnce();
+  });
+
   it("quits and installs a downloaded update from 지금 업데이트", () => {
     render(<UpdateNotification />);
     act(() => updateDownloaded({ version: "0.11.0-20261121" }));

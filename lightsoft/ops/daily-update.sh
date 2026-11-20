@@ -14,7 +14,11 @@
 #                   the backend even without a new release.
 #   3. Team client  rebuild/restart compose project `multica-team-web` when
 #                   `lightsoft/dev` moved (or the container is not running).
-#   4. Report       comment on the tracking issue when something changed; open an
+#   4. Lightica     build, notarize and publish the desktop app to the team feed
+#                   (lightsoft/desktop/release.sh) when `lightsoft/dev` changed what
+#                   goes into it since the published build (LIGH-257). Installed
+#                   apps find it within the hour and tell their users.
+#   5. Report       comment on the tracking issue when something changed; open an
 #                   issue for the project agent when something failed.
 #
 # The backend is the fork build when ~/.multica/server/.env sets
@@ -51,6 +55,11 @@ REPORT_ISSUE="${REPORT_ISSUE:-}"
 FAILURE_PROJECT="${FAILURE_PROJECT:-}"
 FAILURE_ASSIGNEE_ID="${FAILURE_ASSIGNEE_ID:-}"
 DRY_RUN="${DRY_RUN:-0}"
+DESKTOP_RELEASE="${DESKTOP_RELEASE:-1}"   # 0 turns the Lightica step off
+LIGHTICA_FEED_DIR="${LIGHTICA_FEED_DIR:-$HOME/.multica/lightica/feed}"
+# What goes into Lightica: the app, the shared packages, the bundled CLI
+# (server/), and the dependency set. Web-only and ops changes do not ship it.
+DESKTOP_PATHS=(apps/desktop packages server package.json pnpm-lock.yaml pnpm-workspace.yaml)
 
 LOG_DIR="$OPS_HOME/logs"
 STATE_DIR="$OPS_HOME/state"
@@ -384,6 +393,45 @@ update_team_client() {
   cd "$OPS_HOME"
 }
 
+# --------------------------------------------------------------- Lightica ----
+feed_latest() {  # $1 = field of the newest Apple silicon release in the feed
+  python3 -c 'import json,sys
+r=[x for x in json.load(open(sys.argv[1])).get("releases",[]) if x.get("arch")=="arm64"]
+print(r[0].get(sys.argv[2],"") if r else "")' "$LIGHTICA_FEED_DIR/releases.json" "$1" 2>/dev/null
+}
+
+# Only commits production already serves reach the feed: this runs after the
+# release merge is pushed, from the commit the team client was just built from.
+update_desktop() {
+  local head published rc
+  [ "$DESKTOP_RELEASE" = 1 ] || { log "Lightica: release step off (DESKTOP_RELEASE=$DESKTOP_RELEASE)"; return; }
+  cd "$REPO_DIR" || return
+  head="$(git rev-parse "origin/$TEAM_BRANCH")"
+  published="$(feed_latest commit)"
+  if [ -n "$published" ] && git cat-file -e "$published^{commit}" 2>/dev/null \
+    && git diff --quiet "$published" "$head" -- "${DESKTOP_PATHS[@]}"; then
+    log "Lightica: \`$(feed_latest version)\` is up to date with $TEAM_BRANCH $(git rev-parse --short "$head")"
+    cd "$OPS_HOME"; return
+  fi
+  if [ "$DRY_RUN" = 1 ]; then
+    log "dry-run: would publish Lightica from $TEAM_BRANCH $(git rev-parse --short "$head") (feed: ${published:0:9})"
+    cd "$OPS_HOME"; return
+  fi
+  if [ "$(git rev-parse HEAD)" != "$head" ]; then
+    log "Lightica: ops checkout is at $(git rev-parse --short HEAD), not origin/$TEAM_BRANCH — not publishing"
+    cd "$OPS_HOME"; return
+  fi
+  log "Lightica: publishing from $TEAM_BRANCH $(git rev-parse --short "$head") (feed: ${published:0:9})"
+  LIGHTICA_FEED_DIR="$LIGHTICA_FEED_DIR" bash lightsoft/desktop/release.sh; rc=$?
+  if [ "$(feed_latest commit)" = "$head" ]; then
+    changed "Lightica \`$(feed_latest version)\` 게시 ($TEAM_BRANCH $(git rev-parse --short "$head")) — 설치된 앱이 1시간 안에 받아서 업데이트 알림을 띄움"
+    [ $rc = 0 ] || failed "Lightica 게시는 됐지만 설치 안내 이슈 갱신 실패 — release.sh 로그 확인"
+  else
+    failed "Lightica 빌드·게시 실패 ($TEAM_BRANCH $(git rev-parse --short "$head")) — 피드는 \`$(feed_latest version)\` 그대로"
+  fi
+  cd "$OPS_HOME"
+}
+
 # ---------------------------------------------------------------- report ----
 backend_desc() {
   if fork_backend; then
@@ -419,6 +467,7 @@ if prepare_repo; then
   mirror_release_tags
   update_production
   update_team_client
+  update_desktop
 else
   failed "ops checkout ($REPO_DIR) fetch/clone failed"
 fi

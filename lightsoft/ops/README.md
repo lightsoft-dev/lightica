@@ -7,7 +7,8 @@
 | 1 | 포크 `main`·릴리스 태그 | upstream `main`으로 fast-forward합니다. 갈라졌으면 실패로 보고합니다. 이어서 포크에 없는 upstream 릴리스 태그(`v*`)를 push합니다. 포크에 이미 있는 태그는 옮기지 않습니다. |
 | 2 | 운영 Multica (`~/.multica/server`) + `lightsoft/dev` | upstream 최신 **릴리스**가 현재 `MULTICA_IMAGE_TAG`보다 새것이고 ghcr 이미지(포크 backend면 web만)가 올라와 있으면 그 릴리스로 올립니다. 순서는 아래와 같습니다. |
 | 3 | 팀 클라이언트 | `lightsoft/dev` HEAD가 마지막 빌드와 다르거나 컨테이너가 멈춰 있으면 `docker compose -f lightsoft/docker-compose.team-web.yml up -d --build`를 실행합니다. |
-| 4 | 리포트 | 변경이 있으면 리포트 이슈(LIGH-101)에 코멘트를 남깁니다. 실패하면 전담 에이전트에게 새 이슈를 할당합니다. 서버가 죽어 있으면 macOS 알림을 띄웁니다. |
+| 4 | Lightica (데스크톱) | 피드에 게시된 빌드 이후 `lightsoft/dev`(push된 커밋)에서 앱에 들어가는 경로(`apps/desktop`, `packages`, `server`, 의존성 파일)가 바뀌었으면 `lightsoft/desktop/release.sh`로 빌드·공증·게시합니다. 15~30분 걸립니다. 설치된 앱은 1시간 안에 업데이트 알림을 띄웁니다. 실패하면 피드는 그대로입니다. 끄기: `config.env`에 `DESKTOP_RELEASE=0`. 자세한 내용은 `lightsoft/desktop/README.md` "자동 게시"에 있습니다. |
+| 5 | 리포트 | 변경이 있으면 리포트 이슈(LIGH-101)에 코멘트를 남깁니다. 실패하면 전담 에이전트에게 새 이슈를 할당합니다. 서버가 죽어 있으면 macOS 알림을 띄웁니다. |
 
 2단계는 운영 backend가 무엇이냐에 따라 다릅니다. `~/.multica/server/.env`의 `MULTICA_BACKEND_IMAGE`가 `localhost/lightsoft/multica-backend`면 포크 backend, 아니면 upstream backend입니다(`lightsoft/README.md` "포크 backend"). 운영 웹(:3443)은 어느 쪽이든 upstream 이미지입니다.
 
@@ -37,6 +38,7 @@
 | `~/.multica/ops/multica-custom/` | 이 작업 전용 clone. 사람이 작업하는 폴더와 분리돼 있습니다. |
 | `~/.multica/ops/logs/daily-update-YYYYMMDD.log` | 실행 로그 |
 | `~/.multica/ops/state/team-web.built` | 마지막으로 빌드한 `lightsoft/dev` 커밋 |
+| `~/.multica/lightica/feed/releases.json` | Lightica 게시 기록. 맨 앞 기록의 `commit`이 4단계의 기준입니다. |
 | `~/.multica/ops/state/fork-backend.failed` | 헬스 확인에 실패해 롤백된 포크 backend 트리. 같은 트리는 다시 배포하지 않습니다. 지우면 다음 실행에서 다시 시도합니다. |
 | `localhost/lightsoft/multica-backend:*` (docker 이미지) | 포크 backend 빌드. `vX.Y.Z` = 운영이 쓰는 태그, `X.Y.Z-YYYYMMDD[.N]` = 빌드별 |
 | `~/.multica/backups/multica-<버전>-<시각>.dump` | 업그레이드 직전 DB 백업 (최근 14개 보관) |

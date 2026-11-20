@@ -14,7 +14,13 @@ import {
 import type { DaemonInstallPrep } from "./update-install-gate";
 import { classifyUpdaterError } from "./updater-errors";
 import { LIGHTICA_UPDATE_FEED_URL } from "../shared/lightica";
-import { canInstallUpdate, manualDownloadUrl, readOwnSigningTeam } from "./lightica-update";
+import {
+  canInstallUpdate,
+  manualDownloadUrl,
+  oncePerNotice,
+  readOwnSigningTeam,
+  type UpdateNotice,
+} from "./lightica-update";
 
 // Silent background updates: electron-updater downloads on its own as soon
 // as `update-available` fires; we only surface UI when the package is fully
@@ -78,6 +84,8 @@ export interface SetupAutoUpdaterOptions {
   platform?: NodeJS.Platform;
   /** Lightica: the Developer ID team that signed this app (lightica-update.ts). */
   readSigningTeam?: () => string | null | Promise<string | null>;
+  /** Lightica: tell the user about an update outside the window, once per version. */
+  onUpdateNotice?: (notice: UpdateNotice) => void;
 }
 
 export function createElectronBusyInstallPrompt(
@@ -153,6 +161,7 @@ export function setupAutoUpdater(
   autoUpdater.autoDownload = false;
   const readSigningTeam =
     options.readSigningTeam ?? (() => (app.isPackaged ? readOwnSigningTeam() : null));
+  const notifyUpdate = oncePerNotice((notice) => options.onUpdateNotice?.(notice));
   const ownTeam = readSigningTeam();
   let signingTeam: string | null | undefined = ownTeam instanceof Promise ? undefined : ownTeam;
   const signingTeamReady = Promise.resolve(ownTeam)
@@ -314,6 +323,7 @@ export function setupAutoUpdater(
         version: info.version,
         downloadUrl: manualDownloadUrl(info),
       });
+      notifyUpdate({ kind: "manual", version: info.version });
     }
   };
 
@@ -339,6 +349,7 @@ export function setupAutoUpdater(
   autoUpdater.on("update-downloaded", (info: UpdateDownloadedEvent) => {
     updateReadyToInstall = true;
     setDownloadState({ status: "downloaded", version: info.version });
+    notifyUpdate({ kind: "ready", version: info.version });
     broadcast("updater:update-downloaded", {
       version: info.version,
       releaseNotes: info.releaseNotes,

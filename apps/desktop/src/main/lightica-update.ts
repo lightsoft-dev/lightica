@@ -8,7 +8,11 @@
 // build is signed by its own team; otherwise it links to the dmg.
 import { execFile } from "node:child_process";
 import { dirname, resolve } from "node:path";
-import { LIGHTICA_FEED_SIGNING_TEAM_KEY, LIGHTICA_UPDATE_FEED_URL } from "../shared/lightica";
+import {
+  LIGHTICA_FEED_SIGNING_TEAM_KEY,
+  LIGHTICA_UPDATE_COPY,
+  LIGHTICA_UPDATE_FEED_URL,
+} from "../shared/lightica";
 
 const CODESIGN_TIMEOUT_MS = 10_000;
 
@@ -49,4 +53,38 @@ export function manualDownloadUrl(
 ): string {
   const dmg = updateInfo.files?.find((file) => file.url.endsWith(".dmg"));
   return new URL(dmg?.url ?? "", feedUrl).toString();
+}
+
+/** An update the user should hear about: installed on restart, or a dmg to fetch. */
+export interface UpdateNotice {
+  kind: "ready" | "manual";
+  version: string;
+}
+
+/** Title and body of the system notification for `notice`. */
+export function updateNotificationContent(notice: UpdateNotice): { title: string; body: string } {
+  return notice.kind === "ready"
+    ? {
+        title: LIGHTICA_UPDATE_COPY.readyNotificationTitle,
+        body: LIGHTICA_UPDATE_COPY.readyNotificationBody(notice.version),
+      }
+    : {
+        title: LIGHTICA_UPDATE_COPY.manualTitle(notice.version),
+        body: LIGHTICA_UPDATE_COPY.manualBody,
+      };
+}
+
+/**
+ * Calls `notify` once per notice. Every hourly check finds the published
+ * build again (and re-downloads a cached one), so without this the same
+ * version would notify every hour.
+ */
+export function oncePerNotice(notify: (notice: UpdateNotice) => void): (notice: UpdateNotice) => void {
+  const seen = new Set<string>();
+  return (notice) => {
+    const key = `${notice.kind}:${notice.version}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    notify(notice);
+  };
 }

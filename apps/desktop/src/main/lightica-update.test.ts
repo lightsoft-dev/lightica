@@ -8,6 +8,7 @@ import {
   manualDownloadUrl,
   parseCodesignTeam,
   readOwnSigningTeam,
+  updateNotificationContent,
 } from "./lightica-update";
 
 const DEVELOPER_ID = `Executable=/Applications/Lightica.app/Contents/MacOS/Lightica
@@ -82,4 +83,20 @@ it("packages the same feed the app reads, never upstream releases", () => {
   const publish = config.slice(config.indexOf("\npublish:"));
   expect(publish).toMatch(/^\s+provider: generic$/m);
   expect(publish).toMatch(new RegExp(`^\\s+url: ${LIGHTICA_UPDATE_FEED_URL.replace(/[.]/g, "\\.")}$`, "m"));
+});
+
+describe("updateNotificationContent", () => {
+  it("names the version that is ready to install", () => {
+    expect(updateNotificationContent({ kind: "ready", version: "0.11.1-20261121" })).toEqual({
+      title: "Lightica 업데이트 준비됨",
+      body: 'v0.11.1-20261121이(가) 준비됐습니다. 창에서 "지금 업데이트"를 누르면 적용됩니다.',
+    });
+  });
+
+  it("points at the dmg when the app cannot install it itself", () => {
+    expect(updateNotificationContent({ kind: "manual", version: "0.11.1-20261121" })).toEqual({
+      title: "Lightica v0.11.1-20261121",
+      body: "새 버전이 있습니다. dmg를 받아 Applications의 Lightica를 덮어쓰세요.",
+    });
+  });
 });

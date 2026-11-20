@@ -67,7 +67,7 @@ lightsoft/desktop/build.sh --x64      # Intel 맥용
 ## 설치와 첫 실행
 
 1. dmg를 열어 Lightica를 Applications로 옮깁니다. 공증돼 있어 경고 없이 열립니다.
-2. Tailscale에 접속한 상태에서 실행합니다. 로그인을 누르면 브라우저에서 팀 클라이언트(:3444) 로그인이 열리고, 끝나면 `lightica://`로 앱에 돌아옵니다.
+2. Tailscale에 접속한 상태에서 실행합니다. 앱 안에서 이메일로 받은 코드로 로그인합니다. 팀 서버에 Google OAuth가 없어서 구글 로그인 버튼은 두지 않았습니다(LIGH-257). 팀 웹의 "데스크톱에서 열기"는 지금처럼 `lightica://`로 앱에 넘어옵니다.
 3. 다른 서버에 붙이려면 `~/.lightica/desktop.json`을 만듭니다. `appUrl`, `wsUrl`을 생략하면 `apiUrl`에서 계산합니다.
 
    ```json
@@ -129,11 +129,13 @@ DESKTOP_BUILD_VERSION=<그날 버전> lightsoft/desktop/release.sh --x64   # Int
 
 설치된 Lightica는 설정 → 업데이트의 자동 업데이트가 켜져 있으면(기본값) 시작 5초 뒤와 1시간마다 피드의 `latest-mac.yml`을 확인합니다. 같은 화면의 "지금 확인"으로도 확인합니다. 새 버전이 있으면:
 
-- **자동 설치**: 실행 중인 앱과 새 빌드가 **같은 Developer ID 팀**으로 서명돼 있으면 zip을 받아 두고 "Update ready → Restart now"를 띄웁니다. 앱을 종료할 때도 설치됩니다. Squirrel.Mac은 같은 팀 서명이 아니면 설치를 거부하므로, 앱이 자기 서명(`codesign`)과 `latest-mac.yml`의 `lighticaSigningTeam`을 먼저 비교합니다(`apps/desktop/src/main/lightica-update.ts`).
+- **자동 설치**: 실행 중인 앱과 새 빌드가 **같은 Developer ID 팀**으로 서명돼 있으면 zip을 백그라운드에서 받은 뒤 "Lightica vX — 업데이트가 준비됐습니다 → **지금 업데이트**" 알림을 띄웁니다. 같은 버튼은 설정 → 업데이트에도 있습니다. 누르면 앱이 종료되고, Squirrel.Mac이 Applications의 앱을 바꾼 뒤 새 버전을 다시 엽니다(LIGH-268). 누르지 않아도 앱을 종료할 때 설치됩니다. Squirrel.Mac은 같은 팀 서명이 아니면 설치를 거부하므로, 앱이 자기 서명(`codesign`)과 `latest-mac.yml`의 `lighticaSigningTeam`을 먼저 비교합니다(`apps/desktop/src/main/lightica-update.ts`).
+  - 설정 → 데몬의 "앱 종료 시 자동 중지"가 꺼져 있으면(기본값) 데몬은 앱과 함께 멈추지 않습니다. 새 앱이 뜨면 번들 CLI 버전이 바뀐 것을 보고, 돌던 태스크가 끝난 뒤 데몬을 새 CLI로 다시 띄웁니다(`daemon-manager.ts`의 `ensureRunningDaemonVersionMatches`). 켜져 있으면 종료 전에 데몬을 멈추고, 돌던 태스크가 있으면 먼저 묻습니다.
 - **다운로드 안내**: 그 밖의 경우(ad-hoc 빌드, 다른 팀으로 서명된 빌드)는 "Lightica vX — 다운로드" 알림만 띄웁니다. 다운로드를 누르면 브라우저로 dmg를 엽니다.
 - **macOS 알림**: 두 경우 모두 Lightica 창을 보고 있지 않으면 시스템 알림도 띄웁니다. 자동 설치는 "Lightica 업데이트 준비됨", 다운로드 안내는 "Lightica vX"입니다. 버전마다 한 번만 띄웁니다. 알림을 누르면 Lightica 창이 앞으로 오고 배너가 보입니다. 창을 닫아 둔 상태였으면 새 창을 엽니다. macOS 설정 → 알림에서 Lightica를 끄면 배너만 남습니다. 이 알림은 LIGH-257이 들어간 빌드부터 나옵니다. 그 전 빌드는 배너만 띄웁니다.
 - 업데이트 다운로드 캐시는 `~/Library/Caches/lightica-updater`입니다(`extraMetadata.name: lightica`). 공식 Multica 앱의 캐시와 겹치지 않습니다.
 - 이 기능은 이 버전 체계가 들어간 빌드부터 동작합니다. 그 전 빌드(`0.10.0-…`, `0.11.0-26-g…`)는 업데이트 확인이 막혀 있으니 한 번은 손으로 설치합니다.
+- `0.11.0-20261119`까지는 ad-hoc 서명(`codesign -dv`에 `TeamIdentifier=not set`)이라 새 버전이 있어도 "다운로드" 알림만 뜹니다. Squirrel.Mac은 ad-hoc 앱을 제자리에서 바꿀 수 없습니다. **Lightsoft Developer ID로 서명한 첫 빌드 `0.11.0-20261120`**을 한 번 손으로 설치하면, 그다음 게시부터 "지금 업데이트"로 설치됩니다.
 
 ### upstream 업데이트를 받지 않는 설계
 
@@ -151,7 +153,7 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 
 ### 팀원 업데이트 방법
 
-- 알림의 **Restart now**를 누르거나 앱을 종료했다가 다시 켭니다(자동 설치).
+- 알림의 **지금 업데이트**를 누릅니다. 앱이 종료되고 새 버전이 설치된 뒤 다시 열립니다. 앱을 종료했다가 다시 켜도 설치됩니다.
 - "다운로드" 알림이면: dmg를 받아 열고, Lightica를 종료한 뒤 Applications의 Lightica를 덮어씁니다. 로그인과 설정은 그대로 남습니다.
 - 직접 받으려면 릴리스 페이지(`https://mac-studio.taile83671.ts.net:3444/lightica/`)를 엽니다.
 
@@ -172,6 +174,8 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
   - `apps/desktop/src/renderer/src/components/daemon-settings-tab.tsx`(CLI 없음 안내)
   - `apps/desktop/src/renderer/{index.html,src/App.tsx,src/pages/project-detail-page.tsx}`, `apps/desktop/src/renderer/src/components/{update-notification,updates-settings-tab}.tsx`
   - `apps/web/app/(auth)/login/page.tsx`, `apps/web/app/auth/callback/page.tsx`, `apps/web/platform/navigation.tsx`
+  - `apps/desktop/src/renderer/src/pages/login.tsx`(Lightica 마크·이름, 구글 버튼 없음. LIGH-253, LIGH-257)
+  - `apps/web/app/{layout,manifest}.ts(x)`, `apps/web/app/favicon.ico/route.ts`(Lightica 아이콘 경로)
   - 팀 기능 경로: `apps/desktop/src/renderer/src/routes.tsx`의 `secrets`(시크릿 매니저, `lightsoft/secrets/README.md`), `limits`(구독 한도, `lightsoft/usage/README.md`)
 
 ## 공식 Multica 앱과 같이 쓸 때
@@ -180,7 +184,9 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 
 ## 아이콘
 
-원본은 `lightsoft/desktop/icon-source.png`(밝은 배경 위 어두운 도형, 1024px)입니다. 바꾼 뒤 `lightsoft/desktop/make-icons.sh`(ImageMagick 필요)로 `apps/desktop/build/lightica/`를 다시 만듭니다. 스크립트는 원본의 어두운 부분만 잘라 macOS 아이콘 규격(1024px 캔버스 가운데 824px 흰 둥근 사각형)에 640px로 얹습니다. 원본 배경색과 여백은 결과에 남지 않습니다.
+원본은 `lightsoft/desktop/icon-source.png`(밝은 배경 위 어두운 도형, 1024px)입니다. 바꾼 뒤 `lightsoft/desktop/make-icons.sh`(ImageMagick 필요)로 `apps/desktop/build/lightica/`와 팀 웹 아이콘 `apps/web/public/lightica/`를 다시 만듭니다. 스크립트는 원본의 어두운 부분만 잘라 macOS 아이콘 규격(1024px 캔버스 가운데 824px 흰 둥근 사각형)에 640px로 얹습니다. 원본 배경색과 여백은 결과에 남지 않습니다.
+
+팀 웹(LIGH-257)의 favicon·홈 화면 아이콘·설치 이름도 Lightica입니다. `apps/web/public/lightica/`의 PNG(`icon-192/512`, `apple-touch-icon`, `icon-maskable-512`)는 위 스크립트가 만들고, `favicon.svg`는 벡터라 손으로 그렸습니다(`packages/ui/components/common/lightica-icon.tsx`와 같은 도형). 경로는 `apps/web/features/lightsoft/brand.ts` 한 곳에 있고 `app/layout.tsx`, `app/manifest.ts`, `app/favicon.ico/route.ts`가 그걸 씁니다. upstream의 `public/favicon.svg`, `public/icons/`는 덮어쓰지 않습니다. upstream이 자주 바꾸고(`scripts/brand/sync.mjs` 검사도 있음) 일일 merge에서 충돌이 나기 때문입니다. 브라우저 탭 제목(`… | Multica`)은 upstream 그대로입니다.
 
 워크스페이스 아이콘(사이드바에 보이는 워크스페이스 이미지)은 앱이 아니라 서버 데이터입니다. 설정 → 워크스페이스에서 같은 원본을 올립니다. upstream 아이콘 파일(`apps/desktop/build/icon.*`)은 그대로 두고 `mac.icon`만 이쪽을 가리킵니다. 그래서 일일 merge에서 바이너리 충돌이 나지 않습니다.
 

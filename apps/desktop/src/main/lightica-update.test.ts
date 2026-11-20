@@ -86,10 +86,10 @@ it("packages the same feed the app reads, never upstream releases", () => {
 });
 
 describe("updateNotificationContent", () => {
-  it("names the version that is ready to install on restart", () => {
+  it("names the version that is ready to install", () => {
     expect(updateNotificationContent({ kind: "ready", version: "0.11.1-20261121" })).toEqual({
       title: "Lightica 업데이트 준비됨",
-      body: "v0.11.1-20261121이(가) 준비됐습니다. 다시 시작하면 적용됩니다.",
+      body: 'v0.11.1-20261121이(가) 준비됐습니다. 창에서 "지금 업데이트"를 누르면 적용됩니다.',
     });
   });
 

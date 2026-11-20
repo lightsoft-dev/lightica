@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { LIGHTICA_MANIFEST_ICONS, LIGHTICA_NAME } from "@/features/lightsoft/brand";
 
 /**
  * Installable web manifest. Start at /inbox so session-aware proxy routing
@@ -15,8 +16,9 @@ export const PWA_START_URL = "/inbox";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Multica",
-    short_name: "Multica",
+    // Lightsoft fork (LIGH-257): installs as Lightica with the Lightica icon.
+    name: LIGHTICA_NAME,
+    short_name: LIGHTICA_NAME,
     description:
       "Assign tasks to coding agents, track progress, and keep your team's work in one place.",
     start_url: PWA_START_URL,
@@ -28,26 +30,7 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#ffffff",
     theme_color: "#ffffff",
     categories: ["productivity"],
-    icons: [
-      {
-        src: "/icons/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/icons/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/icons/icon-maskable-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-    ],
+    icons: LIGHTICA_MANIFEST_ICONS,
     // Long-press actions on the installed launcher icon. Both are legacy
     // segments, so they resolve to the last workspace the same way start_url
     // does instead of needing a slug the manifest cannot know.

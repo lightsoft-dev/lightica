@@ -36,18 +36,28 @@ fi
 [ -n "$id" ] || { echo "install.sh: could not find or create tunnel $TUNNEL_NAME" >&2; exit 1; }
 [ -s "$HOME/.cloudflared/$id.json" ] || { echo "install.sh: credentials for tunnel $TUNNEL_NAME are not on this Mac" >&2; exit 1; }
 
-if ! out="$("$CF" tunnel route dns "$TUNNEL_NAME" "$HOST" 2>&1)"; then
-  case "$out" in
-    *already*) echo "DNS record for $HOST already exists; leaving it as is" ;;
-    *) echo "$out" >&2; exit 1 ;;
-  esac
-fi
-
 umask 022
 sed -e "s|__TUNNEL_ID__|$id|g" -e "s|__HOST__|$HOST|g" -e "s|__HOME__|$HOME|g" \
   "$SRC_DIR/tunnel.yml.template" > "$CONFIG.new"
 "$CF" tunnel --config "$CONFIG.new" ingress validate >/dev/null
 mv "$CONFIG.new" "$CONFIG"
+
+# Route with this tunnel's own config and UUID. Without --config, cloudflared
+# reads ~/.cloudflared/config.yml, and when that names another tunnel the record
+# is pointed at that tunnel instead (LIGH-253: the hostname answered with a
+# Cloudflare Tunnel error behind Access). An existing record is left alone
+# unless LIGHTICA_OVERWRITE_DNS=1, so a mistyped host cannot take over another
+# service's record.
+dns_flags=()
+[ "${LIGHTICA_OVERWRITE_DNS:-0}" = 1 ] && dns_flags=(--overwrite-dns)
+if ! out="$("$CF" tunnel --config "$CONFIG" route dns ${dns_flags[@]+"${dns_flags[@]}"} "$id" "$HOST" 2>&1)"; then
+  case "$out" in
+    *already*)
+      echo "DNS record for $HOST already exists; leaving it as is." >&2
+      echo "  If it does not point at tunnel $TUNNEL_NAME ($id), rerun with LIGHTICA_OVERWRITE_DNS=1." >&2 ;;
+    *) echo "$out" >&2; exit 1 ;;
+  esac
+fi
 
 sed -e "s|__HOME__|$HOME|g" -e "s|__CLOUDFLARED__|$CF|g" "$SRC_DIR/$LABEL.plist" > "$PLIST"
 stop_tunnel() { launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true; }

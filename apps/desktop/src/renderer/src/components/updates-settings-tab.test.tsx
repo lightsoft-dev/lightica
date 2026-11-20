@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   setAutomaticUpdates: vi.fn(),
   checkForUpdates: vi.fn(),
   getDownloadState: vi.fn(),
+  installUpdate: vi.fn(),
   unsubscribe: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -74,6 +75,7 @@ describe("UpdatesSettingsTab", () => {
     mocks.setAutomaticUpdates.mockReset();
     mocks.checkForUpdates.mockReset();
     mocks.getDownloadState.mockReset().mockResolvedValue({ status: "idle" });
+    mocks.installUpdate.mockReset().mockResolvedValue(undefined);
     mocks.unsubscribe.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.toastError.mockReset();
@@ -90,6 +92,7 @@ describe("UpdatesSettingsTab", () => {
         setAutomaticUpdates: mocks.setAutomaticUpdates,
         checkForUpdates: mocks.checkForUpdates,
         getDownloadState: mocks.getDownloadState,
+        installUpdate: mocks.installUpdate,
         onDownloadState: (listener: typeof downloadListener) => {
           downloadListener = listener;
           return mocks.unsubscribe;
@@ -166,6 +169,8 @@ describe("UpdatesSettingsTab", () => {
     act(() => downloadListener({ status: "downloaded", version: "1.2.4" }));
     expect(screen.getByRole("status")).toHaveTextContent("v1.2.4 is ready to install.");
     expect(screen.queryByText("Downloading v1.2.4")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "지금 업데이트" }));
+    expect(mocks.installUpdate).toHaveBeenCalledOnce();
     unmount();
     expect(mocks.unsubscribe).toHaveBeenCalledOnce();
   });

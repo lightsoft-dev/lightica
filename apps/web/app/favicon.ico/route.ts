@@ -1,3 +1,6 @@
+// Lightsoft fork (LIGH-257): the team client's favicon is Lightica's.
+import { LIGHTICA_FAVICON } from "@/features/lightsoft/brand";
+
 /**
  * Legacy `/favicon.ico` requests point at the real SVG favicon.
  *
@@ -34,6 +37,6 @@ export const dynamic = "force-dynamic";
 export function GET() {
   return new Response(null, {
     status: 308,
-    headers: { Location: "/favicon.svg" },
+    headers: { Location: LIGHTICA_FAVICON },
   });
 }

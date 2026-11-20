@@ -3,11 +3,11 @@ import { ArrowDownToLine, RefreshCw, X } from "@multica/ui/icons";
 import type { UpdaterDownloadState } from "../../../shared/updater-types";
 import { LIGHTICA_RELEASES_URL, LIGHTICA_UPDATE_COPY } from "../../../shared/lightica";
 
-// Downloads run silently in the background (main process has
-// autoDownload=true). The renderer only renders UI once the package is fully
-// downloaded and waiting for a restart.
+// Downloads run silently in the background. The renderer only renders UI once
+// the package is fully downloaded and waiting for a restart.
 // Lightica (LIGH-191): when this app cannot install the published build
-// itself, the banner links to its dmg instead ("manual").
+// itself, the banner links to its dmg instead ("manual"). Otherwise "지금
+// 업데이트" quits, installs and reopens the app (LIGH-268).
 type UpdateState =
   | { status: "idle" }
   | { status: "ready"; version: string }
@@ -70,7 +70,7 @@ export function UpdateNotification() {
             <ArrowDownToLine className="size-4 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-body font-medium break-all">
+            <p className="text-body font-medium break-all pr-4">
               {LIGHTICA_UPDATE_COPY.manualTitle(state.version)}
             </p>
             <p className="text-caption text-muted-foreground mt-0.5">
@@ -114,9 +114,11 @@ export function UpdateNotification() {
           <RefreshCw className="size-4 text-success" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-body font-medium">Update ready</p>
+          <p className="text-body font-medium break-all pr-4">
+            {LIGHTICA_UPDATE_COPY.readyTitle(state.version)}
+          </p>
           <p className="text-caption text-muted-foreground mt-0.5">
-            v{state.version} will be applied on next launch.
+            {LIGHTICA_UPDATE_COPY.readyBody}
           </p>
           <div className="mt-2 flex items-center gap-1.5">
             <button
@@ -125,14 +127,14 @@ export function UpdateNotification() {
               onClick={() => window.desktopAPI.openExternal(LIGHTICA_RELEASES_URL)}
               className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-caption font-medium text-foreground hover:bg-accent transition-colors"
             >
-              See changelog
+              {LIGHTICA_UPDATE_COPY.releases}
             </button>
             <button
               type="button"
               onClick={() => window.updater.installUpdate()}
               className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-caption font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Restart now
+              {LIGHTICA_UPDATE_COPY.installNow}
             </button>
           </div>
         </div>

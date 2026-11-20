@@ -47,9 +47,15 @@ export const LIGHTICA_CLI_MISSING_MESSAGE =
 // this matches its own signature and otherwise links to the dmg.
 export const LIGHTICA_FEED_SIGNING_TEAM_KEY = "lighticaSigningTeam";
 
-// Copy for the "install it yourself" path. Lightica's own strings stay here
-// (Korean, for the team) instead of upstream's locale files.
+// Copy for the update prompts. Lightica's own strings stay here (Korean, for
+// the team) instead of upstream's locale files.
 export const LIGHTICA_UPDATE_COPY = {
+  // Downloaded and installable in place (LIGH-268): one click quits, installs
+  // and reopens the app.
+  readyTitle: (version: string) => `Lightica v${version}`,
+  readyBody: "업데이트가 준비됐습니다. 앱이 종료된 뒤 새 버전으로 다시 열립니다.",
+  installNow: "지금 업데이트",
+  // The "install it yourself" path.
   manualTitle: (version: string) => `Lightica v${version}`,
   manualBody: "새 버전이 있습니다. dmg를 받아 Applications의 Lightica를 덮어쓰세요.",
   manualStatus: (version: string) => `새 버전 v${version}을(를) 받을 수 있습니다.`,

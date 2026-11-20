@@ -9,6 +9,11 @@ import { getRequestLocale } from "@/lib/request-locale";
 import { HTML_LANG } from "@/lib/html-lang";
 import { SITE_TITLE, TITLE_TEMPLATE } from "@/platform/document-title";
 import {
+  LIGHTICA_APPLE_TOUCH_ICON,
+  LIGHTICA_FAVICON,
+  LIGHTICA_NAME,
+} from "@/features/lightsoft/brand";
+import {
   resolveBrowserApiBaseUrl,
   resolveBrowserWsUrl,
   resolveDevRemoteApiUrl,
@@ -95,21 +100,22 @@ export const metadata: Metadata = {
   },
   description:
     "Source-available platform that turns coding agents into real teammates. Assign tasks, track progress, compound skills.",
+  // Lightsoft fork (LIGH-257): the team client wears the Lightica icon.
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    shortcut: ["/favicon.svg"],
+    icon: [{ url: LIGHTICA_FAVICON, type: "image/svg+xml" }],
+    shortcut: [LIGHTICA_FAVICON],
     // iOS never reads the manifest's icons for the home screen; it needs its
     // own opaque, full-bleed square and rounds the corners itself.
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: LIGHTICA_APPLE_TOUCH_ICON, sizes: "180x180" }],
   },
   // Home-screen behaviour: launch without browser chrome, and label the icon
-  // "Multica" rather than the long SEO <title>. `capable` renders the
+  // "Lightica" rather than the long SEO <title>. `capable` renders the
   // standardised `mobile-web-app-capable` tag — Next 16 no longer emits the
   // deprecated apple-prefixed spelling, so iOS standalone rides on the
   // manifest's `display` instead (honoured since iOS 16.4).
   appleWebApp: {
     capable: true,
-    title: "Multica",
+    title: LIGHTICA_NAME,
     // `default` keeps the web view below the status bar, which iOS paints in
     // the theme colour with legible text. `black-translucent` would put the
     // page under it too, but always draws the status text white, unreadable

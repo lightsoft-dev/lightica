@@ -429,3 +429,32 @@ describe("handleAppShortcut — close tab (Cmd/Ctrl+W)", () => {
     ).toBe(true);
   });
 });
+
+describe("handleAppShortcut — non-Latin input sources", () => {
+  // Korean 2-set types "ㄱ" on R, "ㅜ" on N and "ㅈ" on W.
+  it("names a non-Latin letter by its physical key", () => {
+    const wc = makeWc();
+    expect(handleAppShortcut(key("ㅈ", { meta: true }, "KeyW"), wc, "darwin")).toBe(
+      "close-tab",
+    );
+    expect(handleAppShortcut(key("ㄱ", { meta: true }, "KeyR"), wc, "darwin")).toBe(true);
+    expect(
+      handleAppShortcut(key("ㅜ", { meta: true, shift: true }, "KeyN"), wc, "darwin"),
+    ).toBe("new-window");
+    expect(handleAppShortcut(key("ц", { control: true }, "KeyW"), wc, "win32")).toBe(
+      "close-tab",
+    );
+  });
+
+  it("keeps the logical key on Latin layouts", () => {
+    const wc = makeWc();
+    // Dvorak types "," on the physical W key: that is Open Settings, not Close Tab.
+    expect(handleAppShortcut(key(",", { meta: true }, "KeyW"), wc, "darwin")).toBe(
+      "open-settings",
+    );
+    // AZERTY puts "w" on the physical Z key.
+    expect(handleAppShortcut(key("w", { meta: true }, "KeyZ"), wc, "darwin")).toBe(
+      "close-tab",
+    );
+  });
+});

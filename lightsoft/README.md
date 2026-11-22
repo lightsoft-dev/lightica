@@ -73,7 +73,7 @@ make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
 - 한글 입력 상태에서 `ㄷ`을 누르면 `E` 단축키가 동작합니다. 비라틴 글자(한글, 키릴, 그리스, 가나 등)는 `KeyboardEvent.key` 대신 물리 키(`code`, 예: `KeyE`)로 해석합니다. 라틴 배열(AZERTY, Dvorak, 독일어 등)은 지금처럼 입력된 글자 그대로 씁니다.
 - 설정의 단축키 녹화도 같은 규칙이라, 한글 상태에서 녹화해도 `E`로 저장됩니다. 예전에 `ㄷ`처럼 한글로 저장된 단축키도 계속 동작합니다.
 - 코드는 `packages/core/shortcuts/definitions.ts`의 `eventKey` 한 곳입니다. 글자를 직접 비교하던 곳(첨부 미리보기 `G`/`I`, 산출물 개요 `G`, 피커의 `Ctrl+N/J/P/K`)은 `shortcutFromEvent(e)?.key`로 바꿨습니다. 릴리스 merge에서 충돌이 나면 이 파일들부터 확인하세요.
-- 데스크톱 main 프로세스의 고정 단축키(`⌘W`, `⌘R` 차단, `⇧⌘N`, `apps/desktop/src/main/keyboard-shortcuts.ts`)는 아직 `input.key`로 비교합니다.
+- 데스크톱 앱 고정 단축키(`⌘W` 탭 닫기, `⌘R` 새로고침 차단, `⇧⌘N` 새 창)도 같은 규칙입니다(`apps/desktop/src/main/keyboard-shortcuts.ts`의 `letterKey`). 고치기 전에는 한글 상태의 `⌘W`가 기본 메뉴의 창 닫기로 넘어갔습니다. 숫자·기호 고정 단축키(`⌘1`~`⌘9`, 줌, `⌘,`)는 한글 배열도 같은 글자를 내므로 그대로입니다.
 
 ## 포크 backend (운영)
 

@@ -207,8 +207,8 @@ WITH boundary AS MATERIALIZED (
       AND b.recipient_id = $3
       AND b.archived = false
       AND (b.snoozed_until IS NULL OR b.snoozed_until <= now())
-      AND ($4::uuid[] IS NULL OR b_iss.project_id IS NULL
-           OR NOT (b_iss.project_id = ANY($4::uuid[])))
+      AND ($4::uuid[] IS NULL OR b_iss.id IS NULL
+           OR NOT (COALESCE(b_iss.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($4::uuid[])))
     ORDER BY GREATEST(b.created_at, b.returned_at) DESC, b.id DESC
     OFFSET $5::int - 1
     LIMIT 1
@@ -220,8 +220,8 @@ WITH boundary AS MATERIALIZED (
       AND o.recipient_id = $3
       AND o.archived = false
       AND (o.snoozed_until IS NULL OR o.snoozed_until <= now())
-      AND ($4::uuid[] IS NULL OR o_iss.project_id IS NULL
-           OR NOT (o_iss.project_id = ANY($4::uuid[])))
+      AND ($4::uuid[] IS NULL OR o_iss.id IS NULL
+           OR NOT (COALESCE(o_iss.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($4::uuid[])))
       AND (GREATEST(o.created_at, o.returned_at), o.id) < (boundary.shown_at, boundary.id)
       -- An issue back from a snooze whose newest row does not carry the
       -- return yet (written by an older server, or not normalized) ranks too
@@ -331,7 +331,7 @@ WHERE i.workspace_id = $1
   AND ($4::uuid[] IS NULL OR i.issue_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM issue hidden_issue
       WHERE hidden_issue.id = i.issue_id
-        AND hidden_issue.project_id = ANY($4::uuid[])
+        AND COALESCE(hidden_issue.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($4::uuid[])
   ))
 `
 
@@ -453,6 +453,21 @@ AND NOT ($2::text = 'member' AND EXISTS (
           WHERE pm.project_id = private_project.id AND pm.user_id = $3
       )
 ))
+AND NOT ($2::text = 'member' AND EXISTS (
+    SELECT 1 FROM workspace gw
+    JOIN "user" gu ON gu.id = $3
+    WHERE gw.id = $1
+      AND EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(gw.settings->'lightsoft_guests') = 'array'
+            THEN gw.settings->'lightsoft_guests' ELSE '[]'::jsonb END) AS g(email)
+          WHERE lower(btrim(g.email)) = lower(gu.email)
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM issue gi
+          JOIN project_member gpm ON gpm.project_id = gi.project_id AND gpm.user_id = $3
+          WHERE gi.id = $6
+      )
+))
 RETURNING id, workspace_id, recipient_type, recipient_id, type, severity, issue_id, title, body, read, archived, created_at, actor_type, actor_id, details, section, snoozed_until, snoozed_at, returned_at
 `
 
@@ -482,6 +497,8 @@ type CreateInboxItemParams struct {
 // row that held it (HandInboxReturnToRow).
 // MUL-8472: a member outside a private project gets no notification about its
 // issues, whatever their workspace role. Only project members do.
+// Lightsoft (LIGH-282): an outside collaborator gets notifications only about
+// issues in projects they are a project member of.
 func (q *Queries) CreateInboxItem(ctx context.Context, arg CreateInboxItemParams) (InboxItem, error) {
 	row := q.db.QueryRow(ctx, createInboxItem,
 		arg.WorkspaceID,
@@ -628,8 +645,8 @@ SELECT count(*) > 0 FROM (
     WHERE i.workspace_id = $1 AND i.recipient_type = $2 AND i.recipient_id = $3
       AND i.archived = false
       AND (i.snoozed_until IS NULL OR i.snoozed_until <= now())
-      AND ($4::uuid[] IS NULL OR iss.project_id IS NULL
-           OR NOT (iss.project_id = ANY($4::uuid[])))
+      AND ($4::uuid[] IS NULL OR iss.id IS NULL
+           OR NOT (COALESCE(iss.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($4::uuid[])))
     ORDER BY GREATEST(i.created_at, i.returned_at) DESC, i.id DESC
     OFFSET $5::int
     LIMIT 1
@@ -719,7 +736,7 @@ WITH eligible_archived AS MATERIALIZED (
       AND ($4::uuid[] IS NULL OR i.issue_id IS NULL OR NOT EXISTS (
           SELECT 1 FROM issue hidden_issue
           WHERE hidden_issue.id = i.issue_id
-            AND hidden_issue.project_id = ANY($4::uuid[])
+            AND COALESCE(hidden_issue.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($4::uuid[])
       ))
       AND (i.issue_id IS NULL OR NOT EXISTS (
           SELECT 1
@@ -902,7 +919,7 @@ WHERE i.workspace_id = $1 AND i.recipient_type = $2 AND i.recipient_id = $3 AND 
   -- whose time has passed is listed again and keeps snoozed_until, which is
   -- how the client tells an issue that came back on its own.
   AND (i.snoozed_until IS NULL OR i.snoozed_until <= now())
-  AND ($4::uuid[] IS NULL OR iss.project_id IS NULL OR NOT (iss.project_id = ANY($4::uuid[])))
+  AND ($4::uuid[] IS NULL OR iss.id IS NULL OR NOT (COALESCE(iss.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($4::uuid[])))
 ORDER BY GREATEST(i.created_at, i.returned_at) DESC, i.id DESC
 LIMIT $5
 `
@@ -1028,7 +1045,7 @@ FROM (
       AND ($3::uuid[] IS NULL OR NOT EXISTS (
           SELECT 1 FROM issue hidden_issue
           WHERE hidden_issue.id = i.issue_id
-            AND hidden_issue.project_id = ANY($3::uuid[])
+            AND COALESCE(hidden_issue.project_id, '00000000-0000-0000-0000-000000000000'::uuid) = ANY($3::uuid[])
       ))
     GROUP BY i.issue_id
 ) g

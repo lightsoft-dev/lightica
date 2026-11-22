@@ -113,3 +113,21 @@ func TestRunPrincipalsFallsBackToAccountableUser(t *testing.T) {
 		t.Fatalf("originator must win over accountable: %v", got)
 	}
 }
+
+// A guest's hidden set holds UnscopedID (LIGH-282): objects outside any
+// project are hidden from guests only.
+func TestHiddenUnscopedForGuestsOnly(t *testing.T) {
+	member := newHidden()
+	member.add([]pgtype.UUID{{Bytes: [16]byte{1}, Valid: true}})
+	if !member.CanSeeProject(pgtype.UUID{}) || member.HidesUnscoped() {
+		t.Fatal("a member sees project-less objects")
+	}
+	guest := newHidden()
+	guest.add([]pgtype.UUID{{Bytes: [16]byte{1}, Valid: true}, UnscopedID})
+	if guest.CanSeeProject(pgtype.UUID{}) || !guest.HidesUnscoped() || guest.Empty() {
+		t.Fatal("a guest must not see project-less objects")
+	}
+	if !guest.CanSeeProject(pgtype.UUID{Bytes: [16]byte{2}, Valid: true}) {
+		t.Fatal("a guest sees projects outside the hidden set")
+	}
+}

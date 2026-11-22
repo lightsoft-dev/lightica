@@ -12,6 +12,11 @@
 // principal: the member. An agent run has two: the human who triggered it and
 // the agent's owner, and sees a private project only when both can. A viewer
 // with no principal sees no private project.
+//
+// Lightsoft fork (LIGH-282): an outside collaborator ("guest") of a workspace
+// sees only the projects they are a project member of, whatever the project's
+// visibility, and nothing outside a project. Their hidden set lists every
+// other project plus UnscopedID, which hides objects with no project.
 package projectaccess
 
 import (
@@ -32,6 +37,19 @@ const (
 // ValidVisibility reports whether v is a storable project visibility.
 func ValidVisibility(v string) bool {
 	return v == VisibilityWorkspace || v == VisibilityPrivate
+}
+
+// UnscopedID stands for "outside any project" in a hidden set (LIGH-282). No
+// project has the nil uuid, so a member's hidden set never holds it; a guest's
+// always does, which is how the SQL filters (COALESCE(project_id, nil uuid))
+// and CanSeeProject hide project-less objects from guests only.
+var UnscopedID = pgtype.UUID{Valid: true}
+
+// guestQuerier is the Lightsoft guest lookup. *db.Queries implements it; a
+// test double that does not sees no guests.
+type guestQuerier interface {
+	ListLightsoftGuestHiddenProjectIDs(ctx context.Context, arg db.ListLightsoftGuestHiddenProjectIDsParams) ([]pgtype.UUID, error)
+	CountLightsoftGuestsAmong(ctx context.Context, arg db.CountLightsoftGuestsAmongParams) (int32, error)
 }
 
 // IsManagerRole reports whether a workspace role may manage the access of a
@@ -73,13 +91,24 @@ func (h *Hidden) add(ids []pgtype.UUID) {
 func (h Hidden) Empty() bool { return len(h.ids) == 0 }
 
 // CanSeeProject reports whether an object in projectID is visible. Objects
-// outside any project (invalid projectID) are always visible.
+// outside any project (invalid projectID) are visible unless the viewer is a
+// guest (UnscopedID in the set).
 func (h Hidden) CanSeeProject(projectID pgtype.UUID) bool {
-	if !projectID.Valid || len(h.set) == 0 {
+	if len(h.set) == 0 {
 		return true
+	}
+	if !projectID.Valid {
+		projectID = UnscopedID
 	}
 	_, hidden := h.set[projectID.Bytes]
 	return !hidden
+}
+
+// HidesUnscoped reports whether objects outside any project are hidden, which
+// is true only for a guest (LIGH-282).
+func (h Hidden) HidesUnscoped() bool {
+	_, hidden := h.set[UnscopedID.Bytes]
+	return hidden
 }
 
 // Param is the value for a `hidden_project_ids` query argument: nil when
@@ -111,6 +140,16 @@ func ForMember(ctx context.Context, q Querier, workspaceID, userID pgtype.UUID) 
 		return Hidden{}, err
 	}
 	h.add(ids)
+	if gq, ok := q.(guestQuerier); ok {
+		guestIDs, err := gq.ListLightsoftGuestHiddenProjectIDs(ctx, db.ListLightsoftGuestHiddenProjectIDsParams{
+			WorkspaceID: workspaceID,
+			UserID:      userID,
+		})
+		if err != nil {
+			return Hidden{}, err
+		}
+		h.add(guestIDs)
+	}
 	return h, nil
 }
 
@@ -126,7 +165,13 @@ func ForPrincipals(ctx context.Context, q Querier, workspaceID pgtype.UUID, prin
 		return Hidden{}, err
 	}
 	if len(private) == 0 {
-		return h, nil
+		guests, err := countGuests(ctx, q, workspaceID, principals)
+		if err != nil {
+			return Hidden{}, err
+		}
+		if guests == 0 {
+			return h, nil
+		}
 	}
 	all := newHidden()
 	all.add(private)
@@ -163,6 +208,25 @@ func ForPrincipals(ctx context.Context, q Querier, workspaceID pgtype.UUID, prin
 		h.add(one.ids)
 	}
 	return h, nil
+}
+
+// countGuests counts the guests among principals; a Querier without the
+// guest lookup has none.
+func countGuests(ctx context.Context, q Querier, workspaceID pgtype.UUID, principals []pgtype.UUID) (int32, error) {
+	gq, ok := q.(guestQuerier)
+	if !ok {
+		return 0, nil
+	}
+	var ids []pgtype.UUID
+	for _, p := range principals {
+		if p.Valid {
+			ids = append(ids, p)
+		}
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	return gq.CountLightsoftGuestsAmong(ctx, db.CountLightsoftGuestsAmongParams{WorkspaceID: workspaceID, UserIds: ids})
 }
 
 // RunPrincipals returns the humans that bound an agent run's access: the

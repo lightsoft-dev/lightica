@@ -68,6 +68,39 @@ make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
 - 포크 코드는 새 파일에 모았습니다: `server/internal/{handler,service}/lightsoft_chat_model.go`, `server/pkg/db/queries/lightsoft_chat_model.sql`, `packages/core/chat/model-selection.ts`, `packages/core/api/lightsoft-chat-model-selection.ts`, `packages/views/chat/components/chat-model-selection-picker.tsx`.
 - upstream 파일에는 연결 코드만 몇 줄 넣었습니다: `chat.go`, `task.go`, `daemon.go`, `router.go`, `client.ts`, `use-chat-controller.ts`, `chat-page.tsx`, `chat-window.tsx`. 릴리스 merge에서 충돌이 나면 이 지점부터 확인하세요.
 
+### 외부 협업자 (LIGH-282)
+
+고객사·협력사 사람에게 **열어 준 프로젝트와 그 이슈만** 보여 주는 계정입니다. 같은 워크스페이스에 두고, 기존 공개 프로젝트든 새 프로젝트든 열 수 있습니다. 제한은 포크 backend가 겁니다(API·CLI·WebSocket·검색 모두). 화면에서 메뉴를 숨기는 것은 편의일 뿐입니다.
+
+**외부 협업자가 할 수 있는 것**
+- 열어 준 프로젝트(그 프로젝트의 멤버로 추가된 것)와 그 이슈를 보고, 이슈 생성·수정, 코멘트, 첨부, 반응, 구독, 인박스를 씁니다. 이슈는 그 프로젝트 안에서만 만들고 옮길 수 있습니다.
+- 이름·아바타 수준으로 팀원과 에이전트가 보입니다(코멘트 작성자와 담당자 표시용). 이메일, 에이전트 지시문·설정은 보이지 않습니다.
+
+**막히는 것**
+- 열지 않은 프로젝트(공개 프로젝트 포함), 프로젝트가 없는 이슈, 그런 이슈의 알림·실시간 이벤트.
+- 에이전트 실행: 할당·채팅·멘션·코멘트 트리거·워크플로 인계 단계로 상태 바꾸기가 모두 거부됩니다. 에이전트는 이 맥에서 팀원 권한으로 돌기 때문입니다.
+- 에이전트·스쿼드 관리, 런타임, Autopilot, 스킬, 채팅, 대시보드, 워크스페이스 설정·초대, 프로젝트 생성·설정, 데몬 등록, 시크릿 매니저, 구독 한도, 터미널. 화면이 매번 불러오는 목록(런타임, 실행 현황 등)은 빈 결과로 응답합니다.
+- 새로 생긴 API도 기본으로 막힙니다. 허용 목록은 `server/internal/handler/lightsoft_guest.go`의 `guestRoutes`입니다.
+
+**추가 (owner/admin)**
+1. 팀 클라이언트 **설정 → 외부 협업자**에서 이메일을 등록합니다. 등록과 함께 워크스페이스 초대가 나갑니다. 등록을 먼저 해야 그 계정이 첫 요청부터 외부 협업자입니다. 일반 초대로 먼저 들어온 멤버를 나중에 등록해도 되지만, 그 사이에는 일반 멤버 권한입니다.
+2. tailnet 밖에서 들어오므로 Cloudflare Access의 Lightica 앱에 그 이메일을 허용하는 정책을 추가합니다(`lightsoft/access/README.md`). 팀원용 재사용 정책에는 넣지 않습니다.
+3. 상대가 `https://lightica.lightsoft.dev`에서 로그인해 초대를 수락하면, 같은 화면의 **프로젝트** 버튼으로 열어 줄 프로젝트를 고릅니다. 공개 프로젝트는 공개 그대로 두고 그 사람만 프로젝트 멤버로 추가됩니다. 프로젝트의 접근 설정 화면(비공개 프로젝트의 멤버 목록)에서 추가해도 같습니다.
+
+API로 할 때(owner/admin 토큰, `X-Workspace-ID` 헤더): `GET/POST /api/lightsoft/guests`(`{"email": ...}`), `DELETE /api/lightsoft/guests?email=...[&promote=1]`. 프로젝트는 `POST /api/projects/{id}/members`(`{"user_ids": [...]}`).
+
+**회수**
+- 프로젝트 하나만 닫기: 같은 **프로젝트** 버튼에서 체크를 끕니다. 바로 404가 됩니다.
+- 전부 회수: 설정 → 멤버에서 워크스페이스에서 내보냅니다. 외부 협업자 목록에는 남겨 두므로 나중에 다시 초대해도 외부 협업자입니다. Cloudflare Access 정책에서도 이메일을 뺍니다.
+- 목록에서 빼기: 워크스페이스 멤버가 아닐 때만 그냥 지워집니다. 멤버인 사람을 빼면 **정식 멤버로 전환**(모든 공개 프로젝트·에이전트 접근)이라 확인을 한 번 더 받습니다.
+
+**저장 방식과 주의**
+- DB 스키마는 바꾸지 않았습니다. 목록은 `workspace.settings.lightsoft_guests`(소문자 이메일 배열)에 있고, member의 role은 `member` 그대로입니다. 워크스페이스 설정 저장(`PATCH /api/workspaces/{id}`)은 이 키를 바꾸지 못하고 응답에서도 빠집니다. 바꾸는 길은 위 API 하나입니다.
+- **upstream backend로 롤백하면 외부 협업자는 일반 멤버가 됩니다.** 롤백 전에 외부 협업자를 워크스페이스에서 먼저 내보냅니다.
+- 시크릿 매니저와 구독 한도 서비스는 role `guest`를 거부하도록 고쳤습니다. 이 버전을 설치(`bash lightsoft/secrets/install.sh`, `bash lightsoft/usage/install.sh`)하기 전에는 외부 협업자를 지정하지 않습니다.
+- 외부 협업자 계정은 어느 워크스페이스에서든 데몬을 등록할 수 없습니다(자기 워크스페이스 포함).
+- 회귀 시나리오: 격리 backend(dev 로그인 코드 사용)에 대고 `node lightsoft/guest/scenario.mjs http://127.0.0.1:<port>`. 운영 주소에는 실행되지 않게 막혀 있습니다.
+
 ## 포크 backend (운영)
 
 운영 backend 컨테이너(`multica-backend-1`)는 이 브랜치로 빌드한 이미지 `localhost/lightsoft/multica-backend`를 씁니다(LIGH-190). 운영 웹(:3443), DB, Tailscale 설정은 upstream 그대로입니다. 포크 backend는 upstream API에 팀 기능만 더한 것이라, 운영 웹과 모바일도 지금처럼 동작합니다.

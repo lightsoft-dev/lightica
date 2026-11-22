@@ -21,6 +21,7 @@ import {
   Tags,
   User,
   Users,
+  UserPlus,
   X,
   Workflow,
   Zap,
@@ -43,6 +44,8 @@ import { AppearanceTab } from "./appearance-tab";
 import { TokensTab } from "./tokens-tab";
 import { WorkspaceTab } from "./workspace-tab";
 import { MembersTab } from "./members-tab";
+import { useLightsoftGuest } from "@multica/core/lightsoft/guests";
+import { LightsoftGuestsTab } from "../../lightsoft/guests";
 import { CodeTab } from "./code-tab";
 import { ChannelsTab } from "./channels-tab";
 import { ConnectedAppsTab, useComposioAvailable } from "./connected-apps-tab";
@@ -130,6 +133,8 @@ export function SettingsPage({ extraDeviceTabs = [] }: SettingsPageProps = {}) {
   const workspace = useCurrentWorkspace();
   const workspaceName = workspace?.name ?? t(($) => $.page.workspace_fallback);
   const { role } = useCurrentMember(workspace?.id ?? "");
+  // Lightsoft (LIGH-282): an outside collaborator gets the personal tabs only.
+  const { isGuest, canManageGuests } = useLightsoftGuest(workspace?.id);
   const isMember = role === "member";
   const navigation = useNavigation();
   const paths = useWorkspacePaths();
@@ -149,7 +154,7 @@ export function SettingsPage({ extraDeviceTabs = [] }: SettingsPageProps = {}) {
     options: { wide?: boolean; adminOnly?: boolean } = {},
   ): SettingsEntry => ({ value, label, icon, content, ...options });
 
-  const groups: SettingsScopeGroup[] = [
+  const allGroups: SettingsScopeGroup[] = [
     {
       key: "personal",
       label: t(($) => $.page.groups.personal),
@@ -204,6 +209,9 @@ export function SettingsPage({ extraDeviceTabs = [] }: SettingsPageProps = {}) {
             entry("members", t(($) => $.page.tabs.members), Users, <MembersTab />, {
               adminOnly: true,
             }),
+            ...(canManageGuests
+              ? [entry("guests", "외부 협업자", UserPlus, <LightsoftGuestsTab />, { adminOnly: true })]
+              : []),
             ...(billingEnabled
               ? [
                   entry(
@@ -282,6 +290,7 @@ export function SettingsPage({ extraDeviceTabs = [] }: SettingsPageProps = {}) {
         ]
       : []),
   ];
+  const groups = isGuest ? allGroups.filter((group) => group.key !== "workspace") : allGroups;
   const allEntries = groups.flatMap((group) =>
     group.subgroups.flatMap((subgroup) => subgroup.entries),
   );

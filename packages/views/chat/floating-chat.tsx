@@ -1,7 +1,8 @@
 "use client";
 
 import { useChatStore } from "@multica/core/chat";
-import { useWorkspacePaths } from "@multica/core/paths";
+import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
+import { useLightsoftGuest } from "@multica/core/lightsoft/guests";
 import { useNavigation } from "../navigation";
 import { ChatFab } from "./components/chat-fab";
 import { ChatWindow } from "./components/chat-window";
@@ -22,8 +23,10 @@ export function FloatingChat() {
   const enabled = useChatStore((s) => s.floatingChatEnabled);
   const { pathname } = useNavigation();
   const wsPaths = useWorkspacePaths();
+  // Lightsoft (LIGH-282): an outside collaborator has no chat.
+  const { isGuest } = useLightsoftGuest(useCurrentWorkspace()?.id);
 
-  if (!enabled) return null;
+  if (!enabled || isGuest) return null;
   // Suppress on the Chat tab — it renders the same conversation full-page.
   if (isFloatingChatRouteSuppressed(pathname, wsPaths.chat())) return null;
 

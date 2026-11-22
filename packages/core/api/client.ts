@@ -326,6 +326,11 @@ import {
   type ChatSessionModelSelectionResponse,
   type LightsoftCapabilities,
 } from "./lightsoft-chat-model-selection";
+import {
+  EMPTY_LIGHTSOFT_GUEST_LIST,
+  LightsoftGuestListSchema,
+  type LightsoftGuestList,
+} from "./lightsoft-guests";
 import { getApiRequestObserver } from "./request-observer";
 import {
   RuntimeProfileSchema,
@@ -4531,6 +4536,33 @@ export class ApiClient {
     }
     return parseWithFallback(raw, LightsoftCapabilitiesSchema, NO_LIGHTSOFT_CAPABILITIES, {
       endpoint: "GET /api/lightsoft/capabilities",
+    });
+  }
+
+  // Lightsoft fork (LIGH-282): outside collaborators, for owners and admins.
+  async listLightsoftGuests(): Promise<LightsoftGuestList> {
+    const raw = await this.fetch<unknown>("/api/lightsoft/guests");
+    return parseWithFallback(raw, LightsoftGuestListSchema, EMPTY_LIGHTSOFT_GUEST_LIST, {
+      endpoint: "GET /api/lightsoft/guests",
+    });
+  }
+
+  async addLightsoftGuest(email: string): Promise<LightsoftGuestList> {
+    const raw = await this.fetch<unknown>("/api/lightsoft/guests", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+    return parseWithFallback(raw, LightsoftGuestListSchema, EMPTY_LIGHTSOFT_GUEST_LIST, {
+      endpoint: "POST /api/lightsoft/guests",
+    });
+  }
+
+  async removeLightsoftGuest(email: string, opts: { promote?: boolean } = {}): Promise<LightsoftGuestList> {
+    const params = new URLSearchParams({ email });
+    if (opts.promote) params.set("promote", "1");
+    const raw = await this.fetch<unknown>(`/api/lightsoft/guests?${params}`, { method: "DELETE" });
+    return parseWithFallback(raw, LightsoftGuestListSchema, EMPTY_LIGHTSOFT_GUEST_LIST, {
+      endpoint: "DELETE /api/lightsoft/guests",
     });
   }
 

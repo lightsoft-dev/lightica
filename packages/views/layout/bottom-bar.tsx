@@ -11,6 +11,7 @@ import { useT } from "../i18n";
 import { AppLink, useNavigation } from "../navigation";
 import { useAppShell } from "./app-shell-context";
 import { useTeamAgentStatus } from "./panels/team-status";
+import { useLightsoftGuest } from "@multica/core/lightsoft/guests";
 
 /**
  * Work that cannot start because its runtime is offline. Links to Team,
@@ -56,11 +57,13 @@ export function AppBottomBar() {
   const floatingChatEnabled = useChatStore((s) => s.floatingChatEnabled);
   const { pathname } = useNavigation();
   const chatPath = useWorkspacePaths().chat();
+  // Lightsoft (LIGH-282): an outside collaborator has no chat.
+  const { isGuest } = useLightsoftGuest(wsId);
 
   if (!wsId || isMobile) return null;
   // Same gates as the floating window: the Settings preference, and the Chat
   // tab, which already shows the conversation full-page.
-  const showChat = floatingChatEnabled && !isFloatingChatRouteSuppressed(pathname, chatPath);
+  const showChat = !isGuest && floatingChatEnabled && !isFloatingChatRouteSuppressed(pathname, chatPath);
 
   return (
     <footer

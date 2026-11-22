@@ -71,6 +71,7 @@ import { CollectionRowContext } from "../collection-list/row-context";
 import { useDragClickGuard } from "../use-drag-click-guard";
 import { ProjectsSectionSettings, SECTION_SETTINGS_REVEAL_CLASS } from "./sidebar-settings";
 import { PrivateProjectLock, SidebarIssueList, TreeRow, TreeToggleRow } from "./sidebar-tree";
+import { useLightsoftGuest } from "@multica/core/lightsoft/guests";
 
 const DRAG_MODIFIERS = [restrictToVerticalAxis, restrictToFirstScrollableAncestor];
 
@@ -206,10 +207,13 @@ export function ProjectsSection({
   const foldersExtension = getProjectFoldersExtension();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { arm: armClickGuard, release: releaseClickGuard } = useDragClickGuard();
-  const rows = useMemo(
-    () => sidebarProjectRows(projects, folders.folders, folders.folderOf, projectSettings, projectOrder),
-    [projects, folders.folders, folders.folderOf, projectSettings, projectOrder],
-  );
+  // Lightsoft (LIGH-282): an outside collaborator sees no project-less issues
+  // and cannot create projects.
+  const { isGuest } = useLightsoftGuest(wsId);
+  const rows = useMemo(() => {
+    const all = sidebarProjectRows(projects, folders.folders, folders.folderOf, projectSettings, projectOrder);
+    return isGuest ? all.filter((row) => row.kind !== "no_project") : all;
+  }, [projects, folders.folders, folders.folderOf, projectSettings, projectOrder, isGuest]);
   const topIds = useMemo(() => rows.map((row) => row.id), [rows]);
   const placement = useMemo(() => projectRowPlacement(rows), [rows]);
   const collisionDetection = useMemo(
@@ -303,7 +307,7 @@ export function ProjectsSection({
       action={
         <>
           <ProjectsSectionSettings wsId={wsId} className={SECTION_SETTINGS_REVEAL_CLASS} />
-          {foldersExtension ? (
+          {isGuest ? null : foldersExtension ? (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -379,7 +383,7 @@ export function ProjectsSection({
         </SortableContext>
       </DndContext>
       <PanelList className="mt-px">
-        {totalProjects === 0 ? (
+        {totalProjects === 0 && isGuest ? null : totalProjects === 0 ? (
           <li>
             <button
               type="button"

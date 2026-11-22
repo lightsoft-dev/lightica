@@ -60,6 +60,7 @@ import { isPathWithin } from "./panel-nav";
 import { useTeamAgentStatus } from "./panels/team-status";
 import { RAIL_ICON_BUTTON_CLASS } from "./rail-styles";
 import { RailWorkspaces } from "./rail-workspaces";
+import { useLightsoftGuest } from "@multica/core/lightsoft/guests";
 import { routeIconForPath } from "./route-icon-components";
 import { useDragClickGuard } from "./use-drag-click-guard";
 
@@ -371,9 +372,16 @@ export function AppRail({
   // Docs stays in the saved order while docs_v1 is off, so it comes back in
   // place when the flag is turned on; it is only left out of what renders.
   const docsEnabled = useFeatureEnabled(DOCS_V1_FLAG, false);
+  // Lightsoft (LIGH-282): an outside collaborator only works on issues.
+  const { isGuest } = useLightsoftGuest(wsId);
   const visibleOrder = useMemo(
-    () => (docsEnabled ? order : order.filter((id) => id !== "docs")),
-    [docsEnabled, order],
+    () =>
+      isGuest
+        ? order.filter((id) => id === "work")
+        : docsEnabled
+          ? order
+          : order.filter((id) => id !== "docs"),
+    [docsEnabled, isGuest, order],
   );
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { arm: armClickGuard, release: releaseClickGuard } = useDragClickGuard();

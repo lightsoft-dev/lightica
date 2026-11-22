@@ -65,16 +65,18 @@ describe("ApiClient chat model selection (LIGH-104)", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ error: "not found" }, 404)));
     await expect(
       new ApiClient("https://api.example.test").getLightsoftCapabilities(),
-    ).resolves.toEqual({ chat_model_selection: false });
+    ).resolves.toEqual({ chat_model_selection: false, guest: false, guest_management: false });
   });
 
   it.each([
-    ["fork backend", { chat_model_selection: true }, true],
-    ["malformed flag", { chat_model_selection: "yes" }, false],
+    ["fork backend", { chat_model_selection: true }, { chat_model_selection: true, guest: false, guest_management: false }],
+    ["malformed flag", { chat_model_selection: "yes" }, { chat_model_selection: false, guest: false, guest_management: false }],
+    ["guest caller", { chat_model_selection: false, guest: true, guest_management: false }, { chat_model_selection: false, guest: true, guest_management: false }],
+    ["malformed guest flag", { chat_model_selection: true, guest: "yes", guest_management: 1 }, { chat_model_selection: true, guest: false, guest_management: false }],
   ])("getLightsoftCapabilities parses a %s", async (_name, body, expected) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(body)));
     await expect(
       new ApiClient("https://api.example.test").getLightsoftCapabilities(),
-    ).resolves.toEqual({ chat_model_selection: expected });
+    ).resolves.toEqual(expected);
   });
 });

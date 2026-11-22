@@ -38,12 +38,22 @@ export const EMPTY_CHAT_SESSION_MODEL_SELECTION: ChatSessionModelSelectionRespon
  *  404s the route, which reads as all-false. */
 export interface LightsoftCapabilities {
   chat_model_selection: boolean;
+  /** The caller is an outside collaborator of this workspace (LIGH-282). */
+  guest: boolean;
+  /** The caller may manage the workspace's outside collaborators. */
+  guest_management: boolean;
 }
 
 export const LightsoftCapabilitiesSchema: z.ZodType<LightsoftCapabilities> = z
-  .object({ chat_model_selection: z.boolean().catch(false) })
+  .object({
+    chat_model_selection: z.boolean().catch(false),
+    guest: z.boolean().catch(false),
+    guest_management: z.boolean().catch(false),
+  })
   .loose();
 
 export const NO_LIGHTSOFT_CAPABILITIES: LightsoftCapabilities = {
   chat_model_selection: false,
+  guest: false,
+  guest_management: false,
 };

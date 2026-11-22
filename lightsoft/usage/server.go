@@ -172,7 +172,8 @@ func (s *server) handleLimits(w http.ResponseWriter, r *http.Request) {
 	member := false
 	for _, m := range members {
 		if m.UserID == user.ID {
-			member = true
+			// An outside collaborator reads as role "guest" (LIGH-282).
+			member = m.Role == "owner" || m.Role == "admin" || m.Role == "member"
 			break
 		}
 	}

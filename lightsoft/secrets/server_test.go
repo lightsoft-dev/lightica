@@ -24,6 +24,7 @@ const (
 	bob     = "b0000000-0000-4000-8000-000000000002" // member, owns agentB
 	carol   = "c0000000-0000-4000-8000-000000000003" // admin
 	erin    = "e0000000-0000-4000-8000-000000000005" // not in the workspace
+	gina    = "90000000-0000-4000-8000-000000000007" // outside collaborator (LIGH-282)
 	agentA  = "aa000000-0000-4000-8000-00000000000a"
 	agentB  = "bb000000-0000-4000-8000-00000000000b"
 	agentC  = "cc000000-0000-4000-8000-00000000000c" // archived
@@ -71,7 +72,7 @@ func (f *fakeMultica) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 		return
 	}
-	members := []apiMember{{UserID: alice, Role: "member"}, {UserID: bob, Role: "member"}, {UserID: carol, Role: "admin"}}
+	members := []apiMember{{UserID: alice, Role: "member"}, {UserID: bob, Role: "member"}, {UserID: carol, Role: "admin"}, {UserID: gina, Role: "guest"}}
 	isMember := false
 	role := ""
 	for _, m := range members {
@@ -386,6 +387,18 @@ func TestReadPermissions(t *testing.T) {
 	}
 	if denied != 3 {
 		t.Fatalf("denied reveals recorded = %d, want 3", denied)
+	}
+}
+
+// An outside collaborator (role "guest", LIGH-282) gets nothing, not even names.
+func TestGuestIsRefused(t *testing.T) {
+	h := newHarness(t)
+	m := h.create(alice, "DB_PASSWORD", "pw", nil)
+	if r := h.browser(gina, http.MethodGet, ws("/secrets"), nil); r.status != http.StatusForbidden {
+		t.Fatalf("guest list: %d %s", r.status, r.body)
+	}
+	if r := h.reveal(gina, m.ID); r.status != http.StatusForbidden {
+		t.Fatalf("guest reveal: %d", r.status)
 	}
 }
 

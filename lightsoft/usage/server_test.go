@@ -17,6 +17,7 @@ const (
 	otherWS = "22222222-2222-4222-8222-222222222222"
 	alice   = "a0000000-0000-4000-8000-000000000001" // member
 	erin    = "e0000000-0000-4000-8000-000000000005" // not in the workspace
+	gina    = "90000000-0000-4000-8000-000000000007" // outside collaborator (LIGH-282)
 	rtA     = "aa000000-0000-4000-8000-00000000000a"
 )
 
@@ -36,11 +37,12 @@ func fakeMultica(t *testing.T) *httptest.Server {
 		case r.URL.Path == "/api/me":
 			_ = json.NewEncoder(w).Encode(apiUser{ID: user})
 		case strings.HasPrefix(r.URL.Path, "/api/workspaces/") && strings.HasSuffix(r.URL.Path, "/members"):
-			if user != alice {
+			if user != alice && user != gina {
 				http.Error(w, `{"error":"not a member"}`, http.StatusNotFound)
 				return
 			}
-			_ = json.NewEncoder(w).Encode([]apiMember{{UserID: alice, Role: "member"}})
+			// The backend shows guests as role "guest" to a guest caller.
+			_ = json.NewEncoder(w).Encode([]apiMember{{UserID: alice, Role: "member"}, {UserID: gina, Role: "guest"}})
 		default:
 			http.NotFound(w, r)
 		}
@@ -154,6 +156,7 @@ func TestLimitsRefusals(t *testing.T) {
 		{"no session", "/api/w/" + wsID + "/limits", nil, http.StatusUnauthorized},
 		{"machine token", "/api/w/" + wsID + "/limits", func(r *http.Request) { r.Header.Set("Authorization", "Bearer mat_task") }, http.StatusUnauthorized},
 		{"not a member", "/api/w/" + wsID + "/limits", withCookie(erin), http.StatusForbidden},
+		{"outside collaborator", "/api/w/" + wsID + "/limits", withCookie(gina), http.StatusForbidden},
 		{"bad workspace id", "/api/w/nope/limits", withCookie(alice), http.StatusBadRequest},
 		{"bad days", "/api/w/" + wsID + "/limits?days=90", withCookie(alice), http.StatusBadRequest},
 	}

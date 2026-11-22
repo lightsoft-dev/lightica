@@ -253,8 +253,15 @@ func (s *server) human(fn func(http.ResponseWriter, *http.Request, *viewer)) htt
 				break
 			}
 		}
-		if v.role == "" {
+		switch v.role {
+		case "owner", "admin", "member":
+		case "":
 			writeError(w, &apiError{http.StatusForbidden, "이 워크스페이스의 구성원이 아닙니다."})
+			return
+		default:
+			// An outside collaborator reads as role "guest" (LIGH-282); any
+			// role this service does not know gets nothing either.
+			writeError(w, &apiError{http.StatusForbidden, "외부 협업자는 시크릿을 볼 수 없습니다."})
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)

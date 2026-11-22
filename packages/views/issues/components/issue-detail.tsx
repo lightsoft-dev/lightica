@@ -228,6 +228,8 @@ import {
   useAnimatedRightSidebarState,
   useRightSidebarShortcut,
 } from "../../layout/animated-right-sidebar";
+import { useLightsoftGuest } from "@multica/core/lightsoft/guests";
+import { withoutLightsoftGuestSections } from "../../lightsoft/guests/issue-sections";
 
 /**
  * Memento entry recording that the comment-highlight deep link for this
@@ -1531,6 +1533,8 @@ export function IssueDetail({ issueId, onDelete, onDone, onUnsubscribeArchive, d
 
   // Issue navigation — read from TQ list cache
   const wsId = useWorkspaceId();
+  // Lightsoft (LIGH-282): an outside collaborator gets no run-related sections.
+  const { isGuest } = useLightsoftGuest(wsId);
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   // Workspace owners and admins moderate any comment authored by anyone
@@ -3617,7 +3621,7 @@ export function IssueDetail({ issueId, onDelete, onDone, onUnsubscribeArchive, d
 
   const sidebarContent = landingChromeHeld ? null : (
     <IssueSidebarSections
-      sections={sidebarSections}
+      sections={isGuest ? withoutLightsoftGuestSections(sidebarSections) : sidebarSections}
       available={ISSUE_SIDEBAR_SECTIONS.filter(
         (section) => (section !== "pull_requests" || githubSettings.prSidebar) && (section !== "plugins" || pluginsEnabled),
       )}

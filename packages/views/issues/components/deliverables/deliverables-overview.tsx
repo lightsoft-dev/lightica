@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { LayoutGrid, Link2, MessageSquareText, X } from "@multica/ui/icons";
 import type { DeliverableFile } from "@multica/core/attachments/deliverables";
+import { shortcutFromEvent } from "@multica/core/shortcuts";
 import type { TimelineEntry } from "@multica/core/types";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { Dialog, DialogContent, DialogTitle } from "@multica/ui/components/ui/dialog";
@@ -92,7 +93,7 @@ export function DeliverablesOverview({
     if (!open || !onReturn) return;
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      if (e.key.toLowerCase() === "g") {
+      if (shortcutFromEvent(e)?.key === "G") {
         e.preventDefault();
         onReturn();
       }

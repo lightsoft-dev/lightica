@@ -414,6 +414,69 @@ describe("keyboard shortcut definitions", () => {
     ).toBe(false);
   });
 
+  it("names letters typed by a non-Latin layout by physical key", () => {
+    // Korean 2-set: the E key types "ㄷ", Shift+E "ㄸ", Command+K "ㅏ".
+    expect(shortcutFromEvent(keyEvent("ㄷ", { code: "KeyE" }), "macos")).toEqual(
+      createShortcutChord("E"),
+    );
+    expect(
+      shortcutFromEvent(keyEvent("ㄸ", { code: "KeyE", shiftKey: true }), "macos"),
+    ).toEqual(createShortcutChord("E", { shift: true }));
+    expect(
+      shortcutFromEvent(keyEvent("ㅏ", { code: "KeyK", metaKey: true }), "macos"),
+    ).toEqual(createShortcutChord("K", { primary: true }));
+    // Cyrillic, Greek and kana layouts, including keys outside A–Z.
+    expect(
+      shortcutFromEvent(keyEvent("с", { code: "KeyC", ctrlKey: true }), "windows"),
+    ).toEqual(createShortcutChord("C", { primary: true }));
+    expect(
+      shortcutFromEvent(keyEvent("х", { code: "BracketLeft", metaKey: true }), "macos"),
+    ).toEqual(createShortcutChord("[", { primary: true }));
+    expect(shortcutFromEvent(keyEvent("ε", { code: "KeyE" }), "linux")).toEqual(
+      createShortcutChord("E"),
+    );
+    expect(shortcutFromEvent(keyEvent("ち", { code: "KeyA" }), "macos")).toEqual(
+      createShortcutChord("A"),
+    );
+    // Reserved accelerators are recognized through the same key.
+    expect(
+      isReservedShortcut(
+        shortcutFromEvent(keyEvent("ㅊ", { code: "KeyC", metaKey: true }), "macos")!,
+        "macos",
+      ),
+    ).toBe(true);
+    expect(
+      shortcutMatchesEvent(createShortcutChord("E"), keyEvent("ㄷ", { code: "KeyE" }), "macos"),
+    ).toBe(true);
+    expect(
+      shortcutMatchesEvent(
+        createShortcutChord("E"),
+        keyEvent("ㄸ", { code: "KeyE", shiftKey: true }),
+        "macos",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Latin layouts and non-letter keys on their logical key", () => {
+    // Dvorak types "." on the physical E key; German types "ö" on Semicolon.
+    expect(shortcutFromEvent(keyEvent(".", { code: "KeyE" }), "macos")).toEqual(
+      createShortcutChord("."),
+    );
+    expect(shortcutFromEvent(keyEvent("ö", { code: "Semicolon" }), "windows")).toEqual(
+      createShortcutChord("ö"),
+    );
+    // A non-Latin letter on a key without a physical name keeps the letter.
+    expect(shortcutFromEvent(keyEvent("ろ", { code: "IntlRo" }), "macos")).toEqual(
+      createShortcutChord("ろ"),
+    );
+  });
+
+  it("keeps matching bindings saved under a non-Latin letter", () => {
+    const event = keyEvent("ㄷ", { code: "KeyE" });
+    expect(shortcutMatchesEvent(createShortcutChord("ㄷ"), event, "macos")).toBe(true);
+    expect(shortcutMatchesEvent(createShortcutChord("E"), event, "macos")).toBe(true);
+  });
+
   it("treats AltGraph as Option on macOS but as character input elsewhere", () => {
     const altGraph = (fields: Parameters<typeof keyEvent>[1]) => ({
       ...keyEvent("©", { code: "KeyG", altKey: true, ...fields }),

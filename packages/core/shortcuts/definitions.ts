@@ -47,7 +47,11 @@ export interface ShortcutModifiers {
 }
 
 export interface ShortcutChord {
-  /** Logical key (`KeyboardEvent.key`), not physical keyboard position. */
+  /**
+   * Logical key (`KeyboardEvent.key`), not physical keyboard position. Letters
+   * typed by a non-Latin layout and macOS Option glyphs are the exception:
+   * they are named by physical key (see `eventKey`).
+   */
   key: string;
   modifiers: ShortcutModifiers;
 }
@@ -209,21 +213,32 @@ function isComposedOptionKey(key: string): boolean {
   return key === "Dead" || (key.length === 1 && key.charCodeAt(0) > 0x7e);
 }
 
+// Non-Latin layouts (Korean, Cyrillic, Greek, Hebrew, kana, ...) type their
+// own letter on the keys a Latin layout labels A–Z: under Korean input the E
+// key arrives as "ㄷ". It is still the E shortcut, so such letters are named by
+// physical key too. Latin layouts (AZERTY, Dvorak, German) keep their logical
+// key, including accented letters like "ö".
+const NON_LATIN_LETTER = /^(?!\p{Script=Latin})\p{L}$/u;
+
 function eventKey(
   event: KeyboardEvent,
   platform: ShortcutPlatform,
-  physicalOption: boolean,
+  physicalKeys: boolean,
 ): string | null {
   // Synthetic events (e.g. Chrome autofill) may omit `key` entirely.
   if (typeof event.key !== "string") return null;
   if (MODIFIER_KEYS.has(event.key)) return null;
   if (
-    physicalOption &&
+    physicalKeys &&
     platform === "macos" &&
     event.altKey &&
     isComposedOptionKey(event.key)
   ) {
     return keyFromCode(event.code);
+  }
+  if (physicalKeys && NON_LATIN_LETTER.test(event.key)) {
+    const physical = keyFromCode(event.code);
+    if (physical) return physical;
   }
   if (NON_ACTIONABLE_KEYS.has(event.key)) return null;
   const key = KEY_LABELS[event.key] ?? event.key;
@@ -245,13 +260,13 @@ export function isShortcutModifierKey(key: unknown): boolean {
 function chordFromEvent(
   event: KeyboardEvent,
   platform: ShortcutPlatform,
-  physicalOption: boolean,
+  physicalKeys: boolean,
 ): ShortcutChord | null {
   const mac = platform === "macos";
   // Firefox on macOS reports Option as AltGraph; elsewhere AltGraph means the
   // key is typing a character, not forming a chord.
   if (!mac && event.getModifierState?.("AltGraph")) return null;
-  const key = eventKey(event, platform, physicalOption);
+  const key = eventKey(event, platform, physicalKeys);
   if (!key) return null;
   return createShortcutChord(key, {
     primary: mac ? event.metaKey : event.ctrlKey,
@@ -301,8 +316,8 @@ export function shortcutMatchesEvent(
   if (eventShortcut !== null && shortcutChordEquals(shortcut, eventShortcut)) {
     return true;
   }
-  // Option chords recorded before they were named by physical key persisted
-  // the composed symbol (⌘⌥G as "©") and must keep firing.
+  // Chords recorded before they were named by physical key persisted the typed
+  // character (⌘⌥G as "©", E under Korean input as "ㄷ") and must keep firing.
   const composedShortcut = chordFromEvent(event, platform, false);
   return composedShortcut !== null && shortcutChordEquals(shortcut, composedShortcut);
 }

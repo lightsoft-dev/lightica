@@ -1,3 +1,5 @@
+import { shortcutFromEvent } from "@multica/core/shortcuts";
+
 // Picker key policy — one answer to "what moves the highlight" and "what
 // accepts", shared by every list-with-a-highlight in the product.
 //
@@ -69,13 +71,14 @@ export function pickerNavigationDirection(
   if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
     return null;
   }
-  // Lowercase because Caps Lock reports "N" without setting shiftKey.
-  switch (event.key.toLowerCase()) {
-    case "n":
-    case "j":
+  // The shortcut key is uppercased (Caps Lock reports "N" without setting
+  // shiftKey) and named by physical key under non-Latin input.
+  switch (shortcutFromEvent(event)?.key) {
+    case "N":
+    case "J":
       return "next";
-    case "p":
-    case "k":
+    case "P":
+    case "K":
       return "prev";
     default:
       return null;

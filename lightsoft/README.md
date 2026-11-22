@@ -68,6 +68,13 @@ make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
 - 포크 코드는 새 파일에 모았습니다: `server/internal/{handler,service}/lightsoft_chat_model.go`, `server/pkg/db/queries/lightsoft_chat_model.sql`, `packages/core/chat/model-selection.ts`, `packages/core/api/lightsoft-chat-model-selection.ts`, `packages/views/chat/components/chat-model-selection-picker.tsx`.
 - upstream 파일에는 연결 코드만 몇 줄 넣었습니다: `chat.go`, `task.go`, `daemon.go`, `router.go`, `client.ts`, `use-chat-controller.ts`, `chat-page.tsx`, `chat-window.tsx`. 릴리스 merge에서 충돌이 나면 이 지점부터 확인하세요.
 
+### 한글 등 비라틴 입력 상태에서도 단축키 동작 (LIGH-346)
+
+- 한글 입력 상태에서 `ㄷ`을 누르면 `E` 단축키가 동작합니다. 비라틴 글자(한글, 키릴, 그리스, 가나 등)는 `KeyboardEvent.key` 대신 물리 키(`code`, 예: `KeyE`)로 해석합니다. 라틴 배열(AZERTY, Dvorak, 독일어 등)은 지금처럼 입력된 글자 그대로 씁니다.
+- 설정의 단축키 녹화도 같은 규칙이라, 한글 상태에서 녹화해도 `E`로 저장됩니다. 예전에 `ㄷ`처럼 한글로 저장된 단축키도 계속 동작합니다.
+- 코드는 `packages/core/shortcuts/definitions.ts`의 `eventKey` 한 곳입니다. 글자를 직접 비교하던 곳(첨부 미리보기 `G`/`I`, 산출물 개요 `G`, 피커의 `Ctrl+N/J/P/K`)은 `shortcutFromEvent(e)?.key`로 바꿨습니다. 릴리스 merge에서 충돌이 나면 이 파일들부터 확인하세요.
+- 데스크톱 main 프로세스의 고정 단축키(`⌘W`, `⌘R` 차단, `⇧⌘N`, `apps/desktop/src/main/keyboard-shortcuts.ts`)는 아직 `input.key`로 비교합니다.
+
 ## 포크 backend (운영)
 
 운영 backend 컨테이너(`multica-backend-1`)는 이 브랜치로 빌드한 이미지 `localhost/lightsoft/multica-backend`를 씁니다(LIGH-190). 운영 웹(:3443), DB, Tailscale 설정은 upstream 그대로입니다. 포크 backend는 upstream API에 팀 기능만 더한 것이라, 운영 웹과 모바일도 지금처럼 동작합니다.

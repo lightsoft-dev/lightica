@@ -1678,6 +1678,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// Daemon API routes (require daemon token or valid user token)
 	r.Route("/api/daemon", func(r chi.Router) {
 		r.Use(middleware.DaemonAuth(queries, patCache, daemonTokenCache, cloudPATVerifier))
+		r.Use(h.LightsoftGuestDeny) // LIGH-282: outside collaborators run no daemon
 
 		r.Post("/register", h.DaemonRegister)
 		r.Post("/deregister", h.DaemonDeregister)
@@ -1758,6 +1759,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// /v1 prevents the Public API from accepting session cookies.
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(queries, patCache, cloudPATVerifier, cfSigner))
+		r.Use(h.LightsoftGuestDeny) // LIGH-282
 		r.Route(pluginBridgePrefix, func(r chi.Router) {
 			registerPluginActionRoutes(r, h)
 			// ui / manual only. `event` is dispatched by the host off the event
@@ -1768,6 +1770,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(queries, patCache, cloudPATVerifier, cfSigner))
+		r.Use(h.LightsoftGuestGate) // LIGH-282: outside collaborators get an allow-list
 		r.Use(middleware.RefreshCloudFrontCookies(cfSigner))
 
 		// Plugin Action API. Called by the HOST PAGE on the signed-in user's
@@ -2661,6 +2664,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 
 			// Lightsoft fork: lets the team client hide fork-only UI on an upstream backend.
 			r.Get("/api/lightsoft/capabilities", h.GetLightsoftCapabilities)
+			// Lightsoft fork (LIGH-282): outside collaborator list, owners/admins.
+			r.Get("/api/lightsoft/guests", h.ListLightsoftGuests)
+			r.Post("/api/lightsoft/guests", h.AddLightsoftGuest)
+			r.Delete("/api/lightsoft/guests", h.RemoveLightsoftGuest)
 
 			r.Route("/api/chat/sessions", func(r chi.Router) {
 				r.Post("/", h.CreateChatSession)

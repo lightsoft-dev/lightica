@@ -235,6 +235,10 @@ type Client struct {
 	writeMu     sync.Mutex // serializes application writes and the final removal notice
 	stopped     atomic.Bool
 
+	// lightsoftGuest keeps an outside collaborator out of workspace-room and
+	// global fanout (Lightsoft, LIGH-282); see lightsoft_guest.go.
+	lightsoftGuest bool
+
 	// sendMu guards sendClosed so a late inbound-response or fanout send
 	// can never write to the closed send channel. closeSend flips
 	// sendClosed under sendMu before closing send, mirroring daemonws.
@@ -530,6 +534,9 @@ func (h *Hub) broadcastToScope(scopeType, scopeID string, message []byte, eventI
 		if excludeUserID != "" && client.userID == excludeUserID {
 			continue
 		}
+		if client.lightsoftGuest && scopeType == ScopeWorkspace {
+			continue
+		}
 		if !client.markSeen(eventID) {
 			continue
 		}
@@ -563,6 +570,9 @@ func (h *Hub) fanoutAllDedup(message []byte, excludeWorkspace, eventID string) {
 	var sent int64
 	for client := range h.clients {
 		if excludeWorkspace != "" && client.workspaceID == excludeWorkspace {
+			continue
+		}
+		if client.lightsoftGuest {
 			continue
 		}
 		if !client.markSeen(eventID) {
@@ -909,6 +919,10 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, resolveSlug
 		send:        make(chan []byte, 256),
 		userID:      userID,
 		workspaceID: workspaceID,
+	}
+	if !markLightsoftGuest(client) {
+		writeWSAuthErrorAndClose(conn, []byte(`{"error":"membership lookup failed"}`), "workspace_id", workspaceID)
+		return
 	}
 	hub.register <- client
 

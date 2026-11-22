@@ -107,10 +107,21 @@ func (h *Handler) applyChatModelSelection(ctx context.Context, task *db.AgentTas
 // "no fork features" and keeps fork-only controls hidden.
 type LightsoftCapabilitiesResponse struct {
 	ChatModelSelection bool `json:"chat_model_selection"`
+	// Guest is true when the caller is an outside collaborator of this
+	// workspace (LIGH-282); the team client then shows only their projects.
+	Guest bool `json:"guest"`
+	// GuestManagement is true for owners and admins, who manage the list.
+	GuestManagement bool `json:"guest_management"`
 }
 
 func (h *Handler) GetLightsoftCapabilities(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, LightsoftCapabilitiesResponse{ChatModelSelection: true})
+	workspaceID := ctxWorkspaceID(r.Context())
+	guest := h.isLightsoftGuestRequest(r, workspaceID)
+	manager := false
+	if m, ok := ctxMember(r.Context()); ok && !guest {
+		manager = roleAllowed(m.Role, "owner", "admin")
+	}
+	writeJSON(w, http.StatusOK, LightsoftCapabilitiesResponse{ChatModelSelection: !guest, Guest: guest, GuestManagement: manager})
 }
 
 // GetChatSessionModelSelection returns the session's current selection.

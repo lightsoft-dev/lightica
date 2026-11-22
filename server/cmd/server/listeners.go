@@ -346,7 +346,7 @@ func registerListeners(bus *events.Bus, b realtime.Broadcaster, audience ...priv
 			}
 			if private {
 				realtime.M.RecordEvent(e.Type)
-				for _, userID := range recipients {
+				for _, userID := range guestRealtime.filterPrivate(e, recipients) {
 					b.BroadcastToScope(realtime.ScopeWorkspaceMember, realtime.WorkspaceMemberScopeID(e.WorkspaceID, userID), data)
 				}
 				return
@@ -373,6 +373,7 @@ func registerListeners(bus *events.Bus, b realtime.Broadcaster, audience ...priv
 		if e.WorkspaceID != "" {
 			realtime.M.RecordEvent(e.Type)
 			b.BroadcastToWorkspace(e.WorkspaceID, data)
+			guestRealtime.fanout(b, e, data)
 		} else if strings.HasPrefix(e.Type, "daemon:") {
 			realtime.M.RecordEvent(e.Type)
 			b.Broadcast(data)

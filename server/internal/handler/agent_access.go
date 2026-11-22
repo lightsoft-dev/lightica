@@ -78,6 +78,12 @@ func (h *Handler) invokeAgentDecision(ctx context.Context, agent db.Agent, actor
 		effectiveUser = originatorUserID
 	}
 
+	// Lightsoft (LIGH-282): an outside collaborator starts no run, directly
+	// or down a chain they began, not even of an agent they own.
+	if h.lightsoftGuestBlocksInvoke(ctx, workspaceID, effectiveUser) {
+		return false
+	}
+
 	// The agent owner may always invoke their own agent.
 	if effectiveUser != "" && uuidToString(agent.OwnerID) == effectiveUser {
 		return true

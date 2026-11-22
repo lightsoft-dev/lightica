@@ -118,6 +118,7 @@ func (h *Handler) workspaceToResponse(w db.Workspace) WorkspaceResponse {
 	if settings == nil {
 		settings = map[string]any{}
 	}
+	stripLightsoftGuestSettings(settings)
 	var repos any
 	if w.Repos != nil {
 		json.Unmarshal(w.Repos, &repos)
@@ -481,6 +482,12 @@ func (h *Handler) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 			}
 			reconcilePRMergeSettings(stored, incoming)
 		}
+		kept, err := h.keepLightsoftGuestSettings(r.Context(), id, req.Settings)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to update workspace")
+			return
+		}
+		req.Settings = kept
 		s, _ := json.Marshal(req.Settings)
 		params.Settings = s
 	}

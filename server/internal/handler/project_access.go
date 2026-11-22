@@ -86,7 +86,9 @@ func (h *Handler) requestHiddenProjects(w http.ResponseWriter, r *http.Request, 
 // message they already use for a missing object: a hidden object must be
 // indistinguishable from one that does not exist, so this never answers 403.
 func (h *Handler) requireProjectVisible(w http.ResponseWriter, r *http.Request, workspaceID string, projectID pgtype.UUID, status int, notFoundMsg string) bool {
-	if !projectID.Valid {
+	// A guest (LIGH-282) sees nothing outside a project, so only a member's
+	// check can skip the lookup.
+	if !projectID.Valid && !h.isLightsoftGuestRequest(r, workspaceID) {
 		return true
 	}
 	hidden, ok := h.requestHiddenProjects(w, r, workspaceID)
@@ -398,9 +400,10 @@ func (h *Handler) chatRunProjectID(ctx context.Context, cs db.ChatSession, task 
 }
 
 // hiddenProjectPredicate is the dynamic-SQL twin of the sqlc
-// hidden_project_ids filter: rows outside any project always pass.
+// hidden_project_ids filter: rows outside any project pass unless the set
+// holds projectaccess.UnscopedID (a guest, LIGH-282).
 func hiddenProjectPredicate(column, param string) string {
-	return "(" + column + " IS NULL OR NOT (" + column + " = ANY(" + param + "::uuid[])))"
+	return "(NOT (COALESCE(" + column + ", '00000000-0000-0000-0000-000000000000'::uuid) = ANY(" + param + "::uuid[])))"
 }
 
 // filterVisibleIssues drops issues in hidden projects from an unpaginated list.

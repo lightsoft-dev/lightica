@@ -603,7 +603,10 @@ func main() {
 			channelLeaseRedis = newNamedRedisClient(opts, "channel-lease")
 		}
 	}
-	registerListeners(bus, broadcaster, newPrivateProjectAudience(db.New(pool)))
+	audienceQueries := db.New(pool)
+	projectAudience := newPrivateProjectAudience(audienceQueries)
+	installLightsoftGuests(audienceQueries, projectAudience) // LIGH-282
+	registerListeners(bus, broadcaster, projectAudience)
 
 	analyticsClient := analytics.NewFromEnv()
 	defer analyticsClient.Close()

@@ -192,6 +192,14 @@ type viewer struct {
 
 func (v *viewer) isAdmin() bool { return v.role == "owner" || v.role == "admin" }
 
+// fullMember reports whether a workspace role may use this service. A guest
+// (an outside collaborator, upstream MUL-9420 / LIGH-282) may not, and neither
+// may a role this service does not know. The backend leaves guest rows out of
+// the member list for clients that do not declare the workspace-guests
+// capability, which this service does not, so today a guest already reads as
+// a non-member; this check holds should a guest row ever be listed.
+func fullMember(role string) bool { return role == "owner" || role == "admin" || role == "member" }
+
 // isSessionToken reports whether a cookie value looks like a login session
 // JWT. Agent task tokens (mat_), personal access tokens (mul_) and other
 // machine credentials are rejected so they cannot pose as a person here.
@@ -253,8 +261,12 @@ func (s *server) human(fn func(http.ResponseWriter, *http.Request, *viewer)) htt
 				break
 			}
 		}
-		if v.role == "" {
+		switch {
+		case v.role == "":
 			writeError(w, &apiError{http.StatusForbidden, "이 워크스페이스의 구성원이 아닙니다."})
+			return
+		case !fullMember(v.role):
+			writeError(w, &apiError{http.StatusForbidden, "외부 협업자는 시크릿을 볼 수 없습니다."})
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
@@ -395,7 +407,9 @@ func (s *server) validateGrants(ctx context.Context, v *viewer, in []grant) ([]g
 	}
 	known := map[string]map[string]bool{"member": {}, "agent": {}, "squad": {}}
 	for _, m := range v.members {
-		known["member"][m.UserID] = true
+		if fullMember(m.Role) {
+			known["member"][m.UserID] = true
+		}
 	}
 	needAgents, needSquads := false, false
 	for _, g := range in {

@@ -53,6 +53,12 @@ describe("pickerNavigationDirection", () => {
     expect(direction({ key: "K", ctrlKey: true })).toBe("prev");
   });
 
+  it("maps the letter aliases by physical key under non-Latin input", () => {
+    // Korean 2-set types "ㅜ" on the N key and "ㅏ" on the K key.
+    expect(direction({ key: "ㅜ", code: "KeyN", ctrlKey: true })).toBe("next");
+    expect(direction({ key: "ㅏ", code: "KeyK", ctrlKey: true })).toBe("prev");
+  });
+
   it("ignores the letters without Ctrl so typing a query is never hijacked", () => {
     expect(direction({ key: "n" })).toBe(null);
     expect(direction({ key: "j" })).toBe(null);

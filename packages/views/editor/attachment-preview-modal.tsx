@@ -67,7 +67,7 @@ import {
 } from "@multica/core/types/attachment-url";
 import { useConfigStore } from "@multica/core/config";
 import { paths, useWorkspaceSlug } from "@multica/core/paths";
-import { createShortcutChord } from "@multica/core/shortcuts";
+import { createShortcutChord, shortcutFromEvent } from "@multica/core/shortcuts";
 import { cn } from "@multica/ui/lib/utils";
 import { TooltipHint } from "@multica/ui/components/common/tooltip-hint";
 import {
@@ -530,13 +530,14 @@ export function AttachmentPreviewModal({
       if (!e.repeat && !isTypingTarget(e.target)) {
         // Claimed with preventDefault so the app's own single-key shortcuts
         // (which skip handled events) don't also fire behind the viewer.
-        const letter = e.key.toLowerCase();
-        if (letter === "g" && onOpenOverview) {
+        // Named like a shortcut so the keys also fire under non-Latin input.
+        const key = shortcutFromEvent(e)?.key;
+        if (key === "G" && onOpenOverview) {
           e.preventDefault();
           onOpenOverview();
           return;
         }
-        if (letter === "i" && onToggleInfo) {
+        if (key === "I" && onToggleInfo) {
           e.preventDefault();
           onToggleInfo();
           return;

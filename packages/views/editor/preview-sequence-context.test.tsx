@@ -626,6 +626,12 @@ describe("host details", () => {
       fireEvent.keyDown(document, { key: "I" });
     });
     expect(screen.queryByRole("complementary", { name: "Info" })).toBeNull();
+
+    // Korean input types "ㅑ" on the I key; it is still the I shortcut.
+    act(() => {
+      fireEvent.keyDown(document, { key: "ㅑ", code: "KeyI" });
+    });
+    expect(screen.getByRole("complementary", { name: "Info" })).toBeInTheDocument();
   });
 
   it("closes the viewer, then locates", async () => {

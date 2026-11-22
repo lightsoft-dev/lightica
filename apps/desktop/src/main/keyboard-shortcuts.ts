@@ -38,6 +38,21 @@ export type ShortcutResult =
   | "new-window"
   | { action: "select-tab"; key: TabSelectionShortcutKey };
 
+// Non-Latin layouts (Korean, Cyrillic, Greek, kana, ...) type their own letter
+// on the A–Z keys: under Korean input Cmd+W arrives as "ㅈ". Name such letters
+// by physical key, as the renderer's shortcut module does, so the fixed chords
+// still fire and never fall through to the default menu's Close Window or
+// Reload. Latin layouts keep their logical key.
+const NON_LATIN_LETTER = /^(?!\p{Script=Latin})\p{L}$/u;
+
+function letterKey(input: ShortcutInput): string {
+  if (NON_LATIN_LETTER.test(input.key)) {
+    const physical = /^Key([A-Z])$/.exec(input.code);
+    if (physical) return physical[1]!.toLowerCase();
+  }
+  return input.key.toLowerCase();
+}
+
 export function handleAppShortcut(
   input: ShortcutInput,
   webContents: ZoomTarget,
@@ -50,7 +65,7 @@ export function handleAppShortcut(
 
   // Block reload — accidental Cmd+R / Ctrl+R / F5 destroys in-memory state
   // (tabs, drafts, WS connections) with no URL bar to recover from.
-  if ((primary && input.key.toLowerCase() === "r") || input.key === "F5") {
+  if ((primary && letterKey(input) === "r") || input.key === "F5") {
     return true;
   }
 
@@ -112,7 +127,7 @@ export function handleAppShortcut(
 
   // Cmd/Ctrl + Shift + N → open another workspace in a new window. The
   // renderer owns the workspace list, so main only forwards the request.
-  if (input.key.toLowerCase() === "n" && input.shift) {
+  if (letterKey(input) === "n" && input.shift) {
     if (input.isAutoRepeat) return true;
     return "new-window";
   }
@@ -120,7 +135,7 @@ export function handleAppShortcut(
   // Cmd/Ctrl + W → close active tab (or window if last tab).
   // Cmd/Ctrl + Shift + W is reserved for "close window" — do not intercept.
   // Return a signal so the caller can send IPC to the renderer.
-  if (input.key.toLowerCase() === "w" && !input.shift) {
+  if (letterKey(input) === "w" && !input.shift) {
     // Holding Cmd/Ctrl+W must not race through several product tabs. Swallow
     // Electron's repeated keydown without issuing another close request.
     if (input.isAutoRepeat) return true;

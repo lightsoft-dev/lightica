@@ -1106,6 +1106,13 @@ describe("InboxPage", () => {
       expect(archiveMutate).toHaveBeenCalledWith("inbox-a", expect.anything());
     });
 
+    it("archives with the E key while Korean input is on", () => {
+      renderWithOpenItem();
+      fireEvent.keyDown(document, { key: "ㄷ", code: "KeyE" });
+
+      expect(archiveMutate).toHaveBeenCalledWith("inbox-a", expect.anything());
+    });
+
     it("restores the open notification while reading the archive", () => {
       reset();
       layout.width = DESKTOP;

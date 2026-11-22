@@ -26,14 +26,17 @@ Lightica는 `lightsoft/dev`로 빌드한 Multica 데스크톱 앱입니다. 팀 
   1. `lightsoft/desktop/signing.sh csr`: 이 맥에서 개인키와 CSR(`~/.lightsoft/signing/Lightsoft-DeveloperID.certSigningRequest`)을 만듭니다. 개인키는 이 맥 밖으로 나가지 않습니다.
   2. **Account Holder**가 developer.apple.com에서 인증서를 발급합니다. Developer ID 인증서는 Account Holder만 만들 수 있고, App Store Connect API 키로는 403이 납니다. 순서: Certificates, IDs & Profiles → Certificates → **+** → **Developer ID Application** → Profile Type **G2 Sub-CA** → 위 CSR 업로드 → Download(`developerID_application.cer`).
   3. `lightsoft/desktop/signing.sh install ~/Downloads/developerID_application.cer`: 받은 인증서와 개인키를 전용 키체인(`~/Library/Keychains/lightsoft-signing.keychain-db`)에 넣습니다. 키체인 비밀번호는 무작위로 만들어 로그인 키체인에 저장하므로, 빌드 중에 codesign 허용 창이 뜨지 않습니다. 암호화된 백업(`~/.lightsoft/signing/developer-id-application.p12`, 비밀번호도 로그인 키체인)을 남기고 평문 개인키는 지웁니다.
-- 공증 자격증명을 키체인 프로필 `lightica-notary`로 한 번 저장합니다. 값은 셸 기록에 남지 않게 입력합니다.
+- 공증 자격증명을 키체인 프로필 `lightica-notary`로 **서명용 키체인에** 한 번 저장합니다. App Store Connect API 키를 환경변수로 넘기면 `signing.sh notary`가 저장하고 로그인까지 확인합니다. 값은 출력하지 않습니다.
 
   ```bash
-  xcrun notarytool store-credentials lightica-notary \
-    --key ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8 --key-id <KEY_ID> --issuer <ISSUER_ID>
+  APPLE_API_KEY=~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8 \
+  APPLE_API_KEY_ID=<KEY_ID> APPLE_API_ISSUER=<ISSUER_ID> \
+    lightsoft/desktop/signing.sh notary
   ```
 
-  키체인 프로필 대신 환경변수도 됩니다: `APPLE_API_KEY`(.p8 경로)·`APPLE_API_KEY_ID`·`APPLE_API_ISSUER`, 또는 `APPLE_ID`·`APPLE_APP_SPECIFIC_PASSWORD`. 값은 로그나 이슈에 남기지 않습니다.
+  `<…>`는 실제 값으로 바꿉니다(zsh는 꺾쇠를 리다이렉션으로 읽습니다). `xcrun notarytool store-credentials`를 `--keychain` 없이 실행하지 않습니다. 그러면 프로필이 notarytool 기본 저장소(데이터 보호 키체인)에 들어가는데, 이 저장소는 **화면이 잠기면 읽을 수 없습니다**. 05:00 일일 작업은 보통 잠긴 화면에서 돌기 때문에 `notarytool could not sign in`으로 멈춥니다(LIGH-255, LIGH-347). 서명용 키체인은 파일 키체인이라 `build.sh`가 잠금 화면에서도 엽니다.
+
+  `build.sh`는 서명용 키체인이 있으면 프로필을 거기서 읽습니다(`APPLE_KEYCHAIN`, electron-builder도 같은 값을 씁니다). 다른 키체인을 쓰려면 `APPLE_KEYCHAIN=<경로>`, notarytool 기본 저장소를 쓰려면 `APPLE_KEYCHAIN=`(빈 값)을 줍니다. 키체인 프로필 대신 환경변수도 됩니다: `APPLE_API_KEY`(.p8 경로)·`APPLE_API_KEY_ID`·`APPLE_API_ISSUER`, 또는 `APPLE_ID`·`APPLE_APP_SPECIFIC_PASSWORD`. 값은 로그나 이슈에 남기지 않습니다.
 
 ## 빌드
 
@@ -48,7 +51,7 @@ lightsoft/desktop/build.sh --x64      # Intel 맥용
 결과물은 `apps/desktop/dist/lightica-<버전>-mac-<arch>.dmg`와 같은 이름의 `.zip`(앱 안 업데이트용), `latest-mac.yml`입니다. 15~30분쯤 걸리고, 대부분 Apple 공증 대기 시간입니다. 스크립트가 하는 일:
 
 1. 서명용 키체인을 열고 `Developer ID Application: Lightsoft` 인증서를 찾습니다. 인증서의 팀 ID는 `APPLE_TEAM_ID`로 씁니다. `scripts/package.mjs`는 이 값이 없으면 공증을 건너뜁니다.
-2. 공증 자격증명으로 `notarytool`에 로그인되는지 먼저 확인합니다.
+2. 공증 자격증명으로 `notarytool`에 로그인되는지 먼저 확인합니다. 키체인 프로필은 서명용 키체인에서 읽습니다.
 3. 버전을 정합니다: `lightsoft/version.sh`가 `<upstream 릴리스>-<YYYYMMDD>`(서울 날짜)를 만들고, 릴리스 피드에 이미 있는 버전이면 `.2`, `.3`을 붙입니다. `DESKTOP_BUILD_VERSION`을 주면 그 값을 씁니다.
 4. `pnpm package -- --mac dmg zip`: 번들 CLI와 음성 엔진을 포함해 빌드하고, `.app`을 서명·공증·staple합니다. 앱과 번들 CLI 모두 3의 버전을 받습니다(`scripts/package.mjs`의 `DESKTOP_BUILD_VERSION`).
 5. dmg도 서명·공증·staple합니다. electron-builder는 `.app`만 공증합니다.
@@ -164,7 +167,7 @@ Lightica는 multica-ai 릴리스로 바뀌지 않습니다. 업데이트는 팀 
 - push된 `lightsoft/dev`, 즉 운영이 쓰는 커밋만 게시합니다. 운영이 새 릴리스로 올라가기 전에 그 릴리스의 Lightica가 나가는 일은 없습니다.
 - 게시하면 LIGH-101 리포트에 "Lightica `<버전>` 게시"가 남고, 설치 안내 이슈(LIGH-116)가 새 버전으로 바뀝니다. 설치된 앱은 1시간 안에 받아서 배너와 macOS 알림을 띄웁니다([앱 안 업데이트](#앱-안-업데이트)).
 - 빌드나 공증이 실패하면 피드는 이전 버전 그대로이고, 실패 이슈가 전담 에이전트에게 갑니다. 다음 날 다시 시도합니다. 빌드는 ops 체크아웃(`~/.multica/ops/multica-custom`)에서 하고, 로그는 그날의 `~/.multica/ops/logs/daily-update-*.log`에 남습니다.
-- 서명 키체인, 공증 프로필, CLI 로그인을 launchd 세션에서 씁니다. 그래서 Mac Studio에 사용자가 로그인돼 있어야 합니다(로그인 키체인 잠금 해제).
+- 서명 키체인, 공증 프로필, CLI 로그인을 launchd 세션에서 씁니다. 그래서 Mac Studio에 사용자가 로그인돼 있어야 합니다(로그인 키체인 잠금 해제). 이때 화면은 보통 잠겨 있으므로 공증 프로필은 서명용 키체인에 있어야 합니다(`signing.sh notary`, 위 "처음 한 번").
 - 끄려면 `~/.multica/ops/config.env`에 `DESKTOP_RELEASE=0`을 넣습니다.
 - 급하면 사람이 `release.sh`로 바로 게시해도 됩니다. 다음 자동 작업은 그 빌드의 커밋을 기준으로 봅니다. 두 실행이 겹치면 나중 것이 시작 단계에서 멈춥니다(`.release.pid`).
 - merge가 충돌로 실패하면, 아래 파일에서 Lightica 값(이름·ID·스킴·경로·팀 피드와 설치 판단)을 유지하는 쪽으로 풉니다.

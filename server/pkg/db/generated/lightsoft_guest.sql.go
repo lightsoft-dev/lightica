@@ -54,6 +54,34 @@ func (q *Queries) GetLightsoftGuestEmails(ctx context.Context, workspaceID pgtyp
 	return guests, err
 }
 
+const isLightsoftGuest = `-- name: IsLightsoftGuest :one
+SELECT EXISTS (
+  SELECT 1
+  FROM workspace w
+  JOIN "user" u ON u.id = $1::uuid
+  WHERE w.id = $2::uuid
+    AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(w.settings->'lightsoft_guests') = 'array'
+        THEN w.settings->'lightsoft_guests' ELSE '[]'::jsonb END) AS g(email)
+      WHERE lower(btrim(g.email)) = lower(u.email)
+    )
+)::bool AS guest
+`
+
+type IsLightsoftGuestParams struct {
+	UserID      pgtype.UUID `json:"user_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+// Whether user_id is listed as a guest of the workspace (uncached; for
+// enqueue-time checks).
+func (q *Queries) IsLightsoftGuest(ctx context.Context, arg IsLightsoftGuestParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isLightsoftGuest, arg.UserID, arg.WorkspaceID)
+	var guest bool
+	err := row.Scan(&guest)
+	return guest, err
+}
+
 const listLightsoftGuestHiddenProjectIDs = `-- name: ListLightsoftGuestHiddenProjectIDs :many
 WITH guest AS (
   SELECT 1 AS one

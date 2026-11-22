@@ -49,7 +49,14 @@ UPDATE workspace SET
     name = COALESCE(sqlc.narg('name'), name),
     description = COALESCE(sqlc.narg('description'), description),
     context = COALESCE(sqlc.narg('context'), context),
-    settings = COALESCE(sqlc.narg('settings'), settings),
+    -- Lightsoft (LIGH-282): the guest list is kept from the stored row in the
+    -- same statement, so a settings write never erases or sets it.
+    settings = CASE WHEN sqlc.narg('settings')::jsonb IS NULL THEN settings
+        ELSE (sqlc.narg('settings')::jsonb - 'lightsoft_guests')
+            || CASE WHEN settings ? 'lightsoft_guests'
+                    THEN jsonb_build_object('lightsoft_guests', settings->'lightsoft_guests')
+                    ELSE '{}'::jsonb END
+        END,
     repos = COALESCE(sqlc.narg('repos'), repos),
     issue_prefix = COALESCE(sqlc.narg('issue_prefix'), issue_prefix),
     avatar_url = COALESCE(sqlc.narg('avatar_url'), avatar_url),

@@ -13,6 +13,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/lightsoftguest"
 	"github.com/multica-ai/multica/server/internal/logger"
 	"github.com/multica-ai/multica/server/internal/util"
+	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
 // Outside collaborators (Lightsoft fork, LIGH-282).
@@ -238,6 +239,33 @@ func matchGuestRoute(routes []guestRoute, method, path string) (guestRoute, bool
 
 var workspacePathRe = regexp.MustCompile(`^/api/workspaces/([^/]+)`)
 
+// guestAnywhereDenied are user-scoped routes that resolve their workspace from
+// a token or row and lead to agent runs or connected accounts: refused to
+// anyone who is a guest of any workspace, whatever workspace they name.
+var guestAnywhereDenied = regexp.MustCompile(`^/api/((lark|slack|dingtalk|wecom|telegram)/binding/redeem|integrations/composio(/.*)?)$`)
+
+// lightsoftFullMemberOfAll reports whether userID is a member, and not a
+// guest, of every workspace in targets.
+func (h *Handler) lightsoftFullMemberOfAll(r *http.Request, userID string, targets []string) bool {
+	userUUID, err := util.ParseUUID(userID)
+	if err != nil {
+		return false
+	}
+	for _, id := range targets {
+		wsUUID, err := util.ParseUUID(id)
+		if err != nil {
+			return false
+		}
+		if _, err := h.Queries.GetMemberByUserAndWorkspace(r.Context(), db.GetMemberByUserAndWorkspaceParams{UserID: userUUID, WorkspaceID: wsUUID}); err != nil {
+			return false
+		}
+		if guest, err := h.lightsoftGuestDirectory().IsGuest(r.Context(), id, userID); err != nil || guest {
+			return false
+		}
+	}
+	return true
+}
+
 // lightsoftRequestWorkspaces returns every workspace the request names, by
 // any of the means the workspace middleware or a handler may read: the URL
 // path, the slug header or query, the id header or query. The gate applies
@@ -247,7 +275,7 @@ func (h *Handler) lightsoftRequestWorkspaces(r *http.Request) []string {
 	var out []string
 	add := func(id string) {
 		if id != "" {
-			out = append(out, id)
+			out = append(out, lightsoftguest.CanonicalID(id))
 		}
 	}
 	if m := workspacePathRe.FindStringSubmatch(r.URL.EscapedPath()); m != nil {
@@ -293,6 +321,10 @@ func (h *Handler) LightsoftGuestGate(next http.Handler) http.Handler {
 		if len(path) > 1 {
 			path = strings.TrimSuffix(path, "/")
 		}
+		if guestAnywhereDenied.MatchString(path) {
+			writeError(w, http.StatusForbidden, guestDeniedMessage)
+			return
+		}
 		targets := h.lightsoftRequestWorkspaces(r)
 		guestWorkspace := ""
 		for _, id := range targets {
@@ -312,11 +344,15 @@ func (h *Handler) LightsoftGuestGate(next http.Handler) http.Handler {
 			}
 		case len(targets) == 0:
 			allowed, ok = matchGuestRoute(guestAccountRoutes, r.Method, path)
-		default:
-			// The request targets only workspaces where this user is not a
-			// guest; membership there is checked as usual.
+		case h.lightsoftFullMemberOfAll(r, userID, targets):
+			// Every workspace the request names is one where this user is a
+			// full member; that workspace's own checks apply.
 			next.ServeHTTP(w, r)
 			return
+		default:
+			// A misspelt, foreign or unknown workspace id: judged as no
+			// workspace, since a handler may resolve its own from a row.
+			allowed, ok = matchGuestRoute(guestAccountRoutes, r.Method, path)
 		}
 		if !ok {
 			writeError(w, http.StatusForbidden, guestDeniedMessage)
@@ -416,8 +452,21 @@ func peekJSONBody(w http.ResponseWriter, r *http.Request) (map[string]json.RawMe
 		// Let the handler answer malformed JSON as it always does.
 		return map[string]json.RawMessage{}, true
 	}
+	// encoding/json fills a struct field from any case-folded spelling of
+	// its key, and the last one wins, so {"project_id":"p","PROJECT_ID":null}
+	// would pass a check of "project_id" and still clear the project.
+	for key := range body {
+		for _, name := range guestCheckedFields {
+			if key != name && strings.EqualFold(key, name) {
+				writeError(w, http.StatusBadRequest, "invalid field "+name)
+				return nil, false
+			}
+		}
+	}
 	return body, true
 }
+
+var guestCheckedFields = []string{"project_id", "assignee_type", "assignee_id"}
 
 func guestJSONString(raw json.RawMessage) (string, bool) {
 	var s *string
@@ -564,6 +613,7 @@ func scrubWorkspaceObject(ws map[string]any) {
 	ws["context"] = nil
 	ws["repos"] = []any{}
 	ws["description"] = nil
+	ws["settings"] = map[string]any{}
 }
 
 func scrubGuestWorkspace(_ *Handler, _ *http.Request, _ string, body []byte) []byte {
@@ -617,32 +667,4 @@ func stripLightsoftGuestSettings(settings any) {
 	if m, ok := settings.(map[string]any); ok {
 		delete(m, lightsoftguest.SettingsKey)
 	}
-}
-
-// keepLightsoftGuestSettings makes a settings write carry the stored guest
-// list whatever the client sent: responses omit it, so a client that saves
-// the settings it read would otherwise erase every guest and promote them to
-// full members. Only /api/lightsoft/guests changes the list.
-func (h *Handler) keepLightsoftGuestSettings(ctx context.Context, workspaceID string, settings any) (any, error) {
-	wsUUID, err := util.ParseUUID(workspaceID)
-	if err != nil {
-		return settings, nil
-	}
-	stored, err := h.Queries.GetLightsoftGuestEmails(ctx, wsUUID)
-	if err != nil {
-		return nil, err
-	}
-	emails := lightsoftguest.ParseEmails(stored)
-	m, ok := settings.(map[string]any)
-	if !ok {
-		if len(emails) == 0 {
-			return settings, nil
-		}
-		m = map[string]any{}
-	}
-	delete(m, lightsoftguest.SettingsKey)
-	if len(emails) > 0 {
-		m[lightsoftguest.SettingsKey] = emails
-	}
-	return m, nil
 }

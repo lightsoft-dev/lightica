@@ -482,12 +482,13 @@ func (h *Handler) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 			}
 			reconcilePRMergeSettings(stored, incoming)
 		}
-		kept, err := h.keepLightsoftGuestSettings(r.Context(), id, req.Settings)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to update workspace")
+		// Lightsoft (LIGH-282): UpdateWorkspace keeps the stored guest list;
+		// it can only merge it into an object.
+		if _, ok := req.Settings.(map[string]any); !ok {
+			writeError(w, http.StatusBadRequest, "settings must be an object")
 			return
 		}
-		req.Settings = kept
+		stripLightsoftGuestSettings(req.Settings)
 		s, _ := json.Marshal(req.Settings)
 		params.Settings = s
 	}

@@ -40,9 +40,16 @@ func (h *Handler) hiddenProjects(r *http.Request, workspaceID string) (projectac
 }
 
 func (h *Handler) hiddenProjectsForAgentRun(ctx context.Context, workspaceID pgtype.UUID, agentID, taskID string) (projectaccess.Hidden, error) {
-	// Most workspaces have no private project; skip the run lookups there.
-	if private, err := h.Queries.ListPrivateProjectIDs(ctx, workspaceID); err != nil || len(private) == 0 {
+	// Most workspaces have no private project; skip the run lookups there,
+	// unless the workspace has guests (LIGH-282), whose runs see less.
+	private, err := h.Queries.ListPrivateProjectIDs(ctx, workspaceID)
+	if err != nil {
 		return projectaccess.Hidden{}, err
+	}
+	if len(private) == 0 {
+		if has, err := h.lightsoftGuestDirectory().HasGuests(ctx, uuidToString(workspaceID)); err != nil || !has {
+			return projectaccess.Hidden{}, err
+		}
 	}
 	agentUUID, agentErr := util.ParseUUID(agentID)
 	taskUUID, taskErr := util.ParseUUID(taskID)

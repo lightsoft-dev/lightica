@@ -85,6 +85,9 @@ func TestLightsoftGuestIssueBodyChecks(t *testing.T) {
 		{"update empties project", checkGuestIssueUpdate, `{"project_id":""}`, http.StatusBadRequest},
 		{"update moves project", checkGuestIssueUpdate, `{"project_id":"q"}`, 0},
 		{"update to agent", checkGuestIssueUpdate, `{"assignee_type":"agent","assignee_id":"a"}`, http.StatusForbidden},
+		// encoding/json matches keys case-insensitively, last one wins.
+		{"case-variant project key", checkGuestIssueUpdate, `{"project_id":"p","PROJECT_ID":null}`, http.StatusBadRequest},
+		{"folded assignee key", checkGuestIssueCreate, `{"project_id":"p","aſſignee_type":"agent"}`, http.StatusBadRequest},
 	}
 	for _, c := range cases {
 		req := httptest.NewRequest("POST", "/api/issues", strings.NewReader(c.body))
@@ -136,5 +139,16 @@ func TestLightsoftGuestSettingsStrip(t *testing.T) {
 	stripLightsoftGuestSettings(settings)
 	if _, ok := settings["lightsoft_guests"]; ok || settings["other"] != true {
 		t.Fatalf("strip = %v", settings)
+	}
+}
+
+func TestLightsoftGuestDeniedAnywhere(t *testing.T) {
+	for _, p := range []string{"/api/slack/binding/redeem", "/api/lark/binding/redeem", "/api/integrations/composio/connect/init"} {
+		if !guestAnywhereDenied.MatchString(p) {
+			t.Errorf("%s should be refused to guests", p)
+		}
+	}
+	if guestAnywhereDenied.MatchString("/api/issues") {
+		t.Error("issues must not be in the anywhere-deny list")
 	}
 }

@@ -27,6 +27,18 @@ import (
 // SettingsKey is the workspace.settings key holding the guest email list.
 const SettingsKey = "lightsoft_guests"
 
+// CanonicalID is the form workspace ids are keyed by. util.ParseUUID accepts
+// other spellings (upper case, no dashes), so every id from a request goes
+// through here before a lookup; an unparsable one comes back unchanged and
+// matches nothing.
+func CanonicalID(id string) string {
+	u, err := util.ParseUUID(id)
+	if err != nil {
+		return id
+	}
+	return util.UUIDToString(u)
+}
+
 // NormalizeEmail is the form emails are stored and compared in.
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
@@ -190,11 +202,11 @@ func (d *Directory) IsGuest(ctx context.Context, workspaceID, userID string) (bo
 	if err != nil {
 		return false, err
 	}
-	set, ok := snap[workspaceID]
+	set, ok := snap[CanonicalID(workspaceID)]
 	if !ok {
 		return false, nil
 	}
-	email, err := d.email(ctx, userID)
+	email, err := d.email(ctx, CanonicalID(userID))
 	if err != nil {
 		return false, err
 	}
@@ -214,7 +226,7 @@ func (d *Directory) GuestWorkspaces(ctx context.Context, userID string) (map[str
 	if len(snap) == 0 {
 		return nil, nil
 	}
-	email, err := d.email(ctx, userID)
+	email, err := d.email(ctx, CanonicalID(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +254,7 @@ func (d *Directory) HasGuests(ctx context.Context, workspaceID string) (bool, er
 	if err != nil {
 		return false, err
 	}
-	return len(snap[workspaceID]) > 0, nil
+	return len(snap[CanonicalID(workspaceID)]) > 0, nil
 }
 
 // ParseEmails reads a stored guest list, normalized, deduplicated and with

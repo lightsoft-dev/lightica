@@ -519,7 +519,14 @@ UPDATE workspace SET
     name = COALESCE($2, name),
     description = COALESCE($3, description),
     context = COALESCE($4, context),
-    settings = COALESCE($5, settings),
+    -- Lightsoft (LIGH-282): the guest list is kept from the stored row in the
+    -- same statement, so a settings write never erases or sets it.
+    settings = CASE WHEN $5::jsonb IS NULL THEN settings
+        ELSE ($5::jsonb - 'lightsoft_guests')
+            || CASE WHEN settings ? 'lightsoft_guests'
+                    THEN jsonb_build_object('lightsoft_guests', settings->'lightsoft_guests')
+                    ELSE '{}'::jsonb END
+        END,
     repos = COALESCE($6, repos),
     issue_prefix = COALESCE($7, issue_prefix),
     avatar_url = COALESCE($8, avatar_url),

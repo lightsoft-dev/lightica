@@ -38,6 +38,11 @@ func memberMayInvokeAgent(ctx context.Context, queries *db.Queries, agent db.Age
 	if userID == "" {
 		return false, nil
 	}
+	// Lightsoft (LIGH-282): an outside collaborator invokes no agent, through
+	// a messaging channel either.
+	if guest, err := lightsoftGuestOf(ctx, queries, workspaceID, memberUserID); err != nil || guest {
+		return false, err
+	}
 	if util.UUIDToString(agent.OwnerID) == userID {
 		return true, nil
 	}

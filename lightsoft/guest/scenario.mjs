@@ -200,6 +200,32 @@ check("에이전트 호출", "guest가 인계 단계로 옮겨도 task 안 생�
 r = await G("GET", `/api/issues/${iFlow}/workflow-handoff?status=in_review`);
 check("에이전트 호출", "인계 미리보기는 비어 있음 (에이전트 노출 없음)", r.status === 200 && r.json.handoff === false && !has(r, agentPub), `HTTP ${r.status}`);
 
+// Independent review findings (LIGH-282): other id spellings, junk workspace ids, backlog promotion, key case.
+const WSU = ws.toUpperCase();
+const GU = (m, p, body) => call(m, p, { token: guest, ws: WSU, body });
+r = await GU("GET", `/api/agents/${agentPub}`); check("우회", "대문자 워크스페이스 ID로 에이전트 상세 → 403", r.status === 403, `HTTP ${r.status}`);
+r = await GU("POST", "/api/chat/sessions", { agent_id: agentPub, title: "x" }); check("우회", "대문자 워크스페이스 ID로 채팅 → 403", r.status === 403, `HTTP ${r.status}`);
+r = await GU("GET", `/api/issues/${iNone}`); check("우회", "대문자 워크스페이스 ID로 NONE 이슈 → 404", r.status === 404, `HTTP ${r.status}`);
+r = await call("GET", `/api/workspaces/${WSU}/members`, { token: guest });
+check("우회", "대문자 경로로 멤버 목록도 이메일 없음", r.status >= 400 || !has(r, ownerEmail), `HTTP ${r.status}`);
+r = await call("POST", "/api/slack/binding/redeem", { token: guest, ws: "x", body: { token: "t" } }); check("우회", "엉뚱한 워크스페이스 ID로 메신저 바인딩 → 403", r.status === 403, `HTTP ${r.status}`);
+r = await call("GET", "/api/runtimes", { token: guest, ws: crypto.randomUUID() }); check("우회", "남의 워크스페이스 ID로 런타임 → 403", r.status === 403, `HTTP ${r.status}`);
+r = await G("PUT", `/api/issues/${iExt}`, { project_id: pExt, PROJECT_ID: null }); check("우회", "대소문자 다른 project_id 키 → 400", r.status === 400, `HTTP ${r.status}`);
+r = await G("GET", `/api/workspaces/${ws}`); check("우회", "워크스페이스 설정은 비어 있음", r.status === 200 && JSON.stringify(r.json.settings) === "{}", `settings=${JSON.stringify(r.json?.settings)}`);
+const iBacklog = (await O("POST", "/api/issues", { title: `backlog agent ${tag}`, project_id: pExt, status: "backlog", assignee_type: "agent", assignee_id: agentPub })).json.id;
+await sleep(500);
+const backlogRuns = async () => list((await O("GET", `/api/issues/${iBacklog}/task-runs`)).json, "tasks").length;
+const b0 = await backlogRuns();
+r = await G("PUT", `/api/issues/${iBacklog}`, { status: "todo" });
+await sleep(800);
+const b1 = await backlogRuns();
+check("에이전트 호출", "에이전트 담당 backlog 이슈를 guest가 todo로 → task 안 생김", b1 === b0, `status HTTP ${r.status}, tasks ${b0}→${b1}`);
+const iBacklog2 = (await O("POST", "/api/issues", { title: `backlog agent owner ${tag}`, project_id: pExt, status: "backlog", assignee_type: "agent", assignee_id: agentPub })).json.id;
+await O("PUT", `/api/issues/${iBacklog2}`, { status: "todo" });
+await sleep(800);
+const ownerRuns = list((await O("GET", `/api/issues/${iBacklog2}/task-runs`)).json, "tasks").length;
+check("에이전트 호출", "대조군: owner가 todo로 옮기면 task 생성", ownerRuns > 0, `tasks=${ownerRuns}`);
+
 // ---------- inbox ----------
 await O("POST", `/api/issues/${iPub}/comments`, { content: `hey [@guest](mention://member/${guestMe.id}) PUB-SECRET-MENTION-${tag}` });
 await O("POST", `/api/issues/${iExt}/comments`, { content: `hey [@guest](mention://member/${guestMe.id}) EXT-MENTION-${tag}` });

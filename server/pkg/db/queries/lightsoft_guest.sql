@@ -95,3 +95,18 @@ LEFT JOIN "user" u ON lower(u.email) = lower(btrim(g.email))
 LEFT JOIN member m ON m.user_id = u.id AND m.workspace_id = w.id
 WHERE w.id = @workspace_id
 ORDER BY g.email;
+
+-- name: IsLightsoftGuest :one
+-- Whether user_id is listed as a guest of the workspace (uncached; for
+-- enqueue-time checks).
+SELECT EXISTS (
+  SELECT 1
+  FROM workspace w
+  JOIN "user" u ON u.id = @user_id::uuid
+  WHERE w.id = @workspace_id::uuid
+    AND EXISTS (
+      SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(w.settings->'lightsoft_guests') = 'array'
+        THEN w.settings->'lightsoft_guests' ELSE '[]'::jsonb END) AS g(email)
+      WHERE lower(btrim(g.email)) = lower(u.email)
+    )
+)::bool AS guest;

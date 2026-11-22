@@ -3,6 +3,7 @@ package lightsoftguest
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -57,6 +58,13 @@ func TestDirectory(t *testing.T) {
 	ctx := context.Background()
 	if ok, err := d.IsGuest(ctx, ws1, guest); err != nil || !ok {
 		t.Fatalf("guest in ws1 = %v %v", ok, err)
+	}
+	// Other spellings of the same id are the same workspace.
+	if ok, _ := d.IsGuest(ctx, strings.ToUpper(ws1), guest); !ok {
+		t.Fatal("upper-case workspace id escaped the guest check")
+	}
+	if ok, _ := d.IsGuest(ctx, strings.ReplaceAll(ws1, "-", ""), guest); !ok {
+		t.Fatal("dashless workspace id escaped the guest check")
 	}
 	if ok, _ := d.IsGuest(ctx, ws2, guest); ok {
 		t.Fatal("guest status leaked to another workspace")

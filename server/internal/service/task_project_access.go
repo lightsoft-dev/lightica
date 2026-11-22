@@ -45,6 +45,9 @@ func (s *TaskService) guardQuickCreateProjectAccess(ctx context.Context, workspa
 // project the run's human or the agent's owner cannot see. Projects that are
 // not private pass after one read each.
 func (s *TaskService) guardRunProjectsAccess(ctx context.Context, workspaceID pgtype.UUID, agent db.Agent, originatorUserID, accountableUserID pgtype.UUID, projectIDs ...pgtype.UUID) error {
+	if err := s.guardLightsoftGuestRun(ctx, workspaceID, originatorUserID, accountableUserID); err != nil {
+		return err
+	}
 	var private []pgtype.UUID
 	for _, projectID := range projectIDs {
 		if !projectID.Valid {

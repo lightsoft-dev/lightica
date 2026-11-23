@@ -7,7 +7,7 @@ describe("GET /favicon.ico", () => {
     const response = GET();
 
     expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe("/lightica/favicon.svg");
+    expect(response.headers.get("location")).toBe("/assets/lightica/favicon.svg");
   });
 
   it("keeps the location relative so it survives a reverse proxy", () => {

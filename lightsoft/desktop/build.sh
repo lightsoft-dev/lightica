@@ -11,7 +11,9 @@
 # lightsoft/desktop/signing.sh (CSC_NAME="<name> (<TEAMID>)" picks another
 # Developer ID). Notarization credentials come from the environment, first
 # match wins:
-#   APPLE_KEYCHAIN_PROFILE  notarytool keychain profile (default: lightica-notary)
+#   APPLE_KEYCHAIN_PROFILE  notarytool keychain profile (default: lightica-notary),
+#                           read from APPLE_KEYCHAIN (default: the signing keychain;
+#                           APPLE_KEYCHAIN= reads notarytool's own keychain)
 #   APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER   App Store Connect API key
 #   APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD                Apple ID
 # Values are passed through and never printed. See lightsoft/desktop/README.md.
@@ -37,7 +39,8 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------- signing ----
 step "signing identity"
-if [ -f "${LIGHTSOFT_SIGNING_KEYCHAIN:-$HOME/Library/Keychains/lightsoft-signing.keychain-db}" ]; then
+signing_kc="${LIGHTSOFT_SIGNING_KEYCHAIN:-$HOME/Library/Keychains/lightsoft-signing.keychain-db}"
+if [ -f "$signing_kc" ]; then
   bash "$root/lightsoft/desktop/signing.sh" unlock
 fi
 signer="${CSC_NAME:-Lightsoft}"
@@ -70,11 +73,23 @@ elif [ -n "${APPLE_ID:-}${APPLE_APP_SPECIFIC_PASSWORD:-}" ]; then
   echo "Apple ID"
 else
   export APPLE_KEYCHAIN_PROFILE="${APPLE_KEYCHAIN_PROFILE:-lightica-notary}"
+  # Without --keychain, notarytool keeps profiles in the data protection keychain,
+  # which is unreadable while the screen is locked, as it is for the 05:00 daily
+  # run. The signing keychain is a file keychain this script has just unlocked.
+  # electron-builder reads APPLE_KEYCHAIN too.
+  if [ -z "${APPLE_KEYCHAIN+set}" ] && [ -f "$signing_kc" ]; then
+    export APPLE_KEYCHAIN="$signing_kc"
+  fi
   notary=(--keychain-profile "$APPLE_KEYCHAIN_PROFILE")
-  echo "keychain profile '$APPLE_KEYCHAIN_PROFILE'"
+  if [ -n "${APPLE_KEYCHAIN:-}" ]; then
+    notary+=(--keychain "$APPLE_KEYCHAIN")
+    echo "keychain profile '$APPLE_KEYCHAIN_PROFILE' in $APPLE_KEYCHAIN"
+  else
+    echo "keychain profile '$APPLE_KEYCHAIN_PROFILE'"
+  fi
 fi
 xcrun notarytool history "${notary[@]}" >/dev/null 2>&1 \
-  || die "notarytool could not sign in with these credentials (see lightsoft/desktop/README.md)"
+  || die "notarytool could not sign in with these credentials (save the profile with lightsoft/desktop/signing.sh notary, see lightsoft/desktop/README.md)"
 
 # ----------------------------------------------------------------- source ----
 step "version"

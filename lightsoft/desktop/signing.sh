@@ -3,6 +3,7 @@
 #
 #   lightsoft/desktop/signing.sh csr            create the private key + CSR (once per certificate)
 #   lightsoft/desktop/signing.sh install <cer>  load the certificate Apple issued for that CSR
+#   lightsoft/desktop/signing.sh notary         save the notarytool profile in the signing keychain
 #   lightsoft/desktop/signing.sh unlock         unlock the signing keychain (build.sh calls this)
 #   lightsoft/desktop/signing.sh status         show the identity build.sh will use
 #
@@ -11,6 +12,11 @@
 # codesign runs without GUI prompts. An encrypted .p12 backup stays next to it.
 # Only the Account Holder can issue a Developer ID certificate (Apple's
 # portal; the App Store Connect API refuses), see lightsoft/desktop/README.md.
+#
+# notary reads APPLE_API_KEY (.p8 path), APPLE_API_KEY_ID and APPLE_API_ISSUER
+# from the environment and never prints them. The profile (APPLE_KEYCHAIN_PROFILE,
+# default lightica-notary) goes into the signing keychain, not notarytool's
+# default keychain, so the 05:00 run can read it with the screen locked.
 set -euo pipefail
 
 DIR="${LIGHTSOFT_SIGNING_DIR:-$HOME/.lightsoft/signing}"
@@ -88,6 +94,19 @@ case "${1:-}" in
     security find-identity -v -p codesigning "$KC"
     ;;
 
+  notary)
+    profile="${APPLE_KEYCHAIN_PROFILE:-lightica-notary}"
+    [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_KEY_ID:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ] \
+      || die "set APPLE_API_KEY (path to the .p8 file), APPLE_API_KEY_ID and APPLE_API_ISSUER"
+    [ -f "$APPLE_API_KEY" ] || die "APPLE_API_KEY must be the path to the .p8 file"
+    unlock
+    xcrun notarytool store-credentials "$profile" --keychain "$KC" \
+      --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" >/dev/null
+    xcrun notarytool history --keychain-profile "$profile" --keychain "$KC" >/dev/null \
+      || die "saved '$profile' but notarytool cannot sign in with it"
+    echo "notary profile '$profile' saved in $KC"
+    ;;
+
   unlock)
     unlock
     ;;
@@ -99,7 +118,7 @@ case "${1:-}" in
     ;;
 
   *)
-    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac

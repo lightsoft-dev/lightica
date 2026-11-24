@@ -35,6 +35,9 @@ export type RouteIconName =
   | "BookOpenText"
   | "Plug"
   | "Settings"
+  // Lightica team-only pages (tab-subject.ts `lightsoft`).
+  | "Hourglass"
+  | "KeyRound"
   | "File"
   | "FileText"
   | "FileImage"

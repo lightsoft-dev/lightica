@@ -253,6 +253,11 @@ export function resolveTabPresentation(
         visual: { kind: "icon", icon: "Bot" },
         title: { kind: "tab", tabKey: "create_agent" },
       };
+    case "lightsoft":
+      // Lightica pages are Korean-only, matching their sidebar labels.
+      return subject.page === "limits"
+        ? { visual: { kind: "icon", icon: "Hourglass" }, title: { kind: "text", text: "구독 한도" } }
+        : { visual: { kind: "icon", icon: "KeyRound" }, title: { kind: "text", text: "시크릿" } };
     case "unknown":
       return {
         visual: DEFAULT_TAB_VISUAL,

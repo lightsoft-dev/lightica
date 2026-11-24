@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, BarChart3, BookOpenText, Bot, Gauge, KeyRound, MessageSquare, Monitor, Plug, Plus, User, UserPlus, Users } from "@multica/ui/icons";
+import { ArrowUpRight, BarChart3, BookOpenText, Bot, Hourglass, KeyRound, MessageSquare, Monitor, Plug, Plus, User, UserPlus, Users } from "@multica/ui/icons";
 import { DropdownMenuItem } from "@multica/ui/components/ui/dropdown-menu";
 import { cn } from "@multica/ui/lib/utils";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -484,7 +484,7 @@ export function TeamPanel() {
             {limitsPath && (
               <PanelLink
                 href={limitsPath}
-                icon={<Gauge />}
+                icon={<Hourglass />}
                 label="구독 한도"
                 active={isPathWithin(pathname, limitsPath)}
               />

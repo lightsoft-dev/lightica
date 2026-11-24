@@ -33,6 +33,19 @@ describe("resolveTabPresentation — pages", () => {
   });
 });
 
+describe("resolveTabPresentation — Lightica pages", () => {
+  it("titles the team-only pages with their sidebar labels", () => {
+    expect(present("/acme/limits")).toEqual({
+      visual: { kind: "icon", icon: "Hourglass" },
+      title: { kind: "text", text: "구독 한도" },
+    });
+    expect(present("/acme/secrets")).toEqual({
+      visual: { kind: "icon", icon: "KeyRound" },
+      title: { kind: "text", text: "시크릿" },
+    });
+  });
+});
+
 describe("resolveTabPresentation — direct resources", () => {
   it("issue shows live status + identifier:title, pending shows type label", () => {
     expect(present("/acme/issues/i1")).toEqual({

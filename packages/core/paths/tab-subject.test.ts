@@ -17,6 +17,9 @@ describe("parseTabSubject", () => {
     ["/acme/agents", { kind: "page", page: "agents" }],
     ["/acme/squads", { kind: "page", page: "squads" }],
     ["/acme/usage", { kind: "page", page: "usage" }],
+    // Lightica team-only pages
+    ["/acme/limits", { kind: "lightsoft", page: "limits" }],
+    ["/acme/secrets", { kind: "lightsoft", page: "secrets" }],
     ["/acme/runtimes", { kind: "page", page: "runtimes" }],
     ["/acme/skills", { kind: "page", page: "skills" }],
     ["/acme/apps", { kind: "page", page: "apps" }],

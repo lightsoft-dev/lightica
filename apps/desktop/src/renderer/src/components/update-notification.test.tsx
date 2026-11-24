@@ -1,9 +1,19 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@multica/core/i18n/react";
+import { RESOURCES } from "@multica/views/locales";
 
 import { UpdateNotification } from "./update-notification";
 import type { UpdaterDownloadState } from "../../../shared/updater-types";
 import { LIGHTICA_RELEASES_URL } from "../../../shared/lightica";
+
+function renderBanner() {
+  return render(
+    <I18nProvider locale="en" resources={RESOURCES}>
+      <UpdateNotification />
+    </I18nProvider>,
+  );
+}
 
 const mocks = vi.hoisted(() => ({
   installUpdate: vi.fn(),
@@ -48,7 +58,7 @@ describe("UpdateNotification", () => {
   });
 
   it("opens the Lightica release page from the update prompt", () => {
-    render(<UpdateNotification />);
+    renderBanner();
     act(() => updateDownloaded({ version: "0.11.0-20261119" }));
 
     expect(screen.queryByRole("button", { name: "Later" })).not.toBeInTheDocument();
@@ -65,7 +75,7 @@ describe("UpdateNotification", () => {
     };
 
     it("links to the dmg instead of offering a restart", () => {
-      render(<UpdateNotification />);
+      renderBanner();
       act(() => downloadState(manual));
 
       expect(screen.getByText("Lightica v0.11.0-20261120")).toBeInTheDocument();
@@ -78,12 +88,12 @@ describe("UpdateNotification", () => {
 
     it("shows a version found before the window opened", async () => {
       initialDownloadState = manual;
-      render(<UpdateNotification />);
+      renderBanner();
       expect(await screen.findByText("Lightica v0.11.0-20261120")).toBeInTheDocument();
     });
 
     it("stays dismissed until a newer version appears", () => {
-      render(<UpdateNotification />);
+      renderBanner();
       act(() => downloadState(manual));
       fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
 
@@ -97,7 +107,7 @@ describe("UpdateNotification", () => {
 
   it("offers the update in a window opened after the download", async () => {
     initialDownloadState = { status: "downloaded", version: "0.11.1-20261121" };
-    render(<UpdateNotification />);
+    renderBanner();
 
     expect(await screen.findByText("Lightica v0.11.1-20261121")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "지금 업데이트" }));
@@ -105,7 +115,7 @@ describe("UpdateNotification", () => {
   });
 
   it("quits and installs a downloaded update from 지금 업데이트", () => {
-    render(<UpdateNotification />);
+    renderBanner();
     act(() => updateDownloaded({ version: "0.11.0-20261121" }));
 
     expect(screen.getByText("Lightica v0.11.0-20261121")).toBeInTheDocument();

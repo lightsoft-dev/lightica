@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, RefreshCw, X } from "@multica/ui/icons";
+import { useT } from "@multica/views/i18n";
 import type { UpdaterDownloadState } from "../../../shared/updater-types";
 import { LIGHTICA_RELEASES_URL, LIGHTICA_UPDATE_COPY } from "../../../shared/lightica";
 
@@ -24,6 +25,7 @@ function bannerState(download: UpdaterDownloadState): UpdateState | null {
 }
 
 export function UpdateNotification() {
+  const { t } = useT("settings");
   const [state, setState] = useState<UpdateState>({ status: "idle" });
   const [dismissed, setDismissed] = useState(false);
   const shownState = useRef<string | null>(null);
@@ -65,7 +67,7 @@ export function UpdateNotification() {
           type="button"
           onClick={() => setDismissed(true)}
           className="absolute top-2 right-2 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Dismiss"
+          aria-label={t(($) => $.desktop.updates.banner_dismiss)}
         >
           <X className="size-3.5" />
         </button>
@@ -109,7 +111,7 @@ export function UpdateNotification() {
         type="button"
         onClick={() => setDismissed(true)}
         className="absolute top-2 right-2 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="Dismiss"
+        aria-label={t(($) => $.desktop.updates.banner_dismiss)}
       >
         <X className="size-3.5" />
       </button>

@@ -18,6 +18,13 @@ import { pageForSegment, type WorkspacePageKey } from "./route-icons";
 
 export type TabActorType = "agent" | "member" | "squad";
 
+/**
+ * Lightica team-only workspace pages. Kept out of WORKSPACE_PAGES on purpose:
+ * that registry also feeds the command palette and the reserved-slug list,
+ * which must stay identical to upstream and the server.
+ */
+export type LightsoftPageKey = "limits" | "secrets";
+
 export type TabSubject =
   /** A collection or tool page with no specific resource. */
   | { kind: "page"; page: WorkspacePageKey }
@@ -35,6 +42,8 @@ export type TabSubject =
   | { kind: "skill"; id: string }
   | { kind: "doc"; id: string }
   | { kind: "docFolder"; id: string }
+  /** One app's page, addressed by its toolkit slug. */
+  | { kind: "app"; slug: string }
   /** A runtime machine detail. */
   | { kind: "machine"; machineId: string }
   /** A runtime nested under a machine. */
@@ -43,13 +52,16 @@ export type TabSubject =
   | { kind: "attachment"; id: string; filename: string | null }
   /**
    * The Inbox container; `selectedKey` is the `?issue=` selection or null,
-   * `archived` is the `?view=archived` sub-list (its own list/cache).
+   * `view` the `?view=` tab: the live Inbox, Snoozed, or Archived (each its
+   * own list/cache).
    */
-  | { kind: "inbox"; selectedKey: string | null; archived: boolean }
+  | { kind: "inbox"; selectedKey: string | null; view: "inbox" | "snoozed" | "archived" }
   /** The Chat container; `sessionId` is the `?session=` selection or null. */
   | { kind: "chat"; sessionId: string | null }
   /** A creation flow that has not produced a resource yet. */
   | { kind: "flow"; flow: "create-agent" }
+  /** Lightica team-only page (lightsoft/usage, lightsoft/secrets). */
+  | { kind: "lightsoft"; page: LightsoftPageKey }
   /** An unrecognized URL. Never impersonate a real page. */
   | { kind: "unknown" };
 
@@ -109,7 +121,7 @@ export function parseTabSubject(url: string): TabSubject {
       return {
         kind: "inbox",
         selectedKey: query.get("issue") || null,
-        archived: query.get("view") === "archived",
+        view: query.get("view") === "archived" ? "archived" : query.get("view") === "snoozed" ? "snoozed" : "inbox",
       };
     case "chat":
       return { kind: "chat", sessionId: query.get("session") || null };
@@ -127,8 +139,13 @@ export function parseTabSubject(url: string): TabSubject {
       return id ? { kind: "doc", id } : { kind: "page", page: "docs" };
     case "skills":
       return id ? { kind: "skill", id } : { kind: "page", page: "skills" };
+    case "apps":
+      return id ? { kind: "app", slug: id } : { kind: "page", page: "apps" };
     case "settings":
       return { kind: "page", page: "settings" };
+    case "limits":
+    case "secrets":
+      return { kind: "lightsoft", page: segment };
     case "attachments":
       // `/attachments/:id/preview?name=<filename>`.
       return id
@@ -169,6 +186,8 @@ export function tabSubjectKey(subject: TabSubject): string {
       return `doc:${subject.id}`;
     case "docFolder":
       return `docFolder:${subject.id}`;
+    case "app":
+      return `app:${subject.slug}`;
     case "machine":
       return `machine:${subject.machineId}`;
     case "runtime":
@@ -176,11 +195,13 @@ export function tabSubjectKey(subject: TabSubject): string {
     case "attachment":
       return `attachment:${subject.id}:${subject.filename ?? ""}`;
     case "inbox":
-      return `inbox:${subject.archived ? "archived" : "inbox"}:${subject.selectedKey ?? ""}`;
+      return `inbox:${subject.view}:${subject.selectedKey ?? ""}`;
     case "chat":
       return `chat:${subject.sessionId ?? ""}`;
     case "flow":
       return `flow:${subject.flow}`;
+    case "lightsoft":
+      return `lightsoft:${subject.page}`;
     case "unknown":
       return "unknown";
   }

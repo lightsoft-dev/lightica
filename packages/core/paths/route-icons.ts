@@ -33,7 +33,11 @@ export type RouteIconName =
   | "Monitor"
   | "Server"
   | "BookOpenText"
+  | "Plug"
   | "Settings"
+  // Lightica team-only pages (tab-subject.ts `lightsoft`).
+  | "Hourglass"
+  | "KeyRound"
   | "File"
   | "FileText"
   | "FileImage"
@@ -58,6 +62,7 @@ export type NavLabelKey =
   | "runtimes"
   | "docs"
   | "skills"
+  | "apps"
   | "settings";
 
 /** Stable identifier for each workspace navigation page. */
@@ -75,6 +80,7 @@ export type WorkspacePageKey =
   | "runtimes"
   | "docs"
   | "skills"
+  | "apps"
   | "settings";
 
 export interface WorkspacePage {
@@ -104,6 +110,7 @@ export const WORKSPACE_PAGES: Record<WorkspacePageKey, WorkspacePage> = {
   runtimes: { segment: "runtimes", icon: "Monitor", navKey: "runtimes" },
   docs: { segment: "docs", icon: "FileText", navKey: "docs" },
   skills: { segment: "skills", icon: "BookOpenText", navKey: "skills" },
+  apps: { segment: "apps", icon: "Plug", navKey: "apps" },
   settings: { segment: "settings", icon: "Settings", navKey: "settings" },
 };
 

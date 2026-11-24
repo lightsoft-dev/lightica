@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { sanitizeNextUrl, useAuthStore } from "@multica/core/auth";
@@ -33,6 +33,9 @@ function CallbackContent() {
   const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
   const [error, setError] = useState<CallbackError | null>(null);
   const [desktopToken, setDesktopToken] = useState<string | null>(null);
+  // Single-use OAuth codes must only be exchanged once even if React StrictMode
+  // re-invokes mount effects in development.
+  const exchangedCodeRef = useRef<string | null>(null);
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -51,6 +54,11 @@ function CallbackContent() {
       setError({ kind: "missing_code" });
       return;
     }
+
+    if (exchangedCodeRef.current === code) {
+      return;
+    }
+    exchangedCodeRef.current = code;
 
     const state = searchParams.get("state") || "";
     const stateParts = state.split(",");

@@ -2,9 +2,10 @@ export {
   paths,
   isGlobalPath,
   isMyAgentsSearch,
+  issueRouteRef,
   AGENT_FOCUS_CONVERSATION_STARTERS,
 } from "./paths";
-export type { WorkspacePaths } from "./paths";
+export type { IssueRouteRef, WorkspacePaths } from "./paths";
 export { RESERVED_SLUGS, isReservedSlug } from "./reserved-slugs";
 export {
   WORKSPACE_PAGES,
@@ -24,7 +25,7 @@ export {
   parseTabSubject,
   tabSubjectKey,
 } from "./tab-subject";
-export type { TabSubject, TabActorType } from "./tab-subject";
+export type { TabSubject, TabActorType, LightsoftPageKey } from "./tab-subject";
 export {
   resolveTabPresentation,
   DEFAULT_TAB_VISUAL,

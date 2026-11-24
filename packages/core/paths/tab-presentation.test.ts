@@ -33,6 +33,19 @@ describe("resolveTabPresentation — pages", () => {
   });
 });
 
+describe("resolveTabPresentation — Lightica pages", () => {
+  it("titles the team-only pages with their sidebar labels", () => {
+    expect(present("/acme/limits")).toEqual({
+      visual: { kind: "icon", icon: "Hourglass" },
+      title: { kind: "text", text: "구독 한도" },
+    });
+    expect(present("/acme/secrets")).toEqual({
+      visual: { kind: "icon", icon: "KeyRound" },
+      title: { kind: "text", text: "시크릿" },
+    });
+  });
+});
+
 describe("resolveTabPresentation — direct resources", () => {
   it("issue shows live status + identifier:title, pending shows type label", () => {
     expect(present("/acme/issues/i1")).toEqual({
@@ -79,7 +92,7 @@ describe("resolveTabPresentation — direct resources", () => {
     });
   });
 
-  it("autopilot / skill / machine / runtime use a type icon + name", () => {
+  it("autopilot / skill / app / machine / runtime use a type icon + name", () => {
     expect(present("/acme/autopilots/a1", { autopilot: { title: "Nightly" } })).toEqual({
       visual: { kind: "icon", icon: "Zap" },
       title: { kind: "text", text: "Nightly" },
@@ -88,6 +101,11 @@ describe("resolveTabPresentation — direct resources", () => {
       visual: { kind: "icon", icon: "BookOpenText" },
       title: { kind: "text", text: "Deploy" },
     });
+    expect(present("/acme/apps/gmail", { app: { name: "Gmail" } })).toEqual({
+      visual: { kind: "icon", icon: "Plug" },
+      title: { kind: "text", text: "Gmail" },
+    });
+    expect(present("/acme/apps/gmail").title).toEqual({ kind: "tab", tabKey: "app" });
     expect(present("/acme/runtimes/m1", { machine: { name: "Mac Studio" } })).toEqual({
       visual: { kind: "icon", icon: "Monitor" },
       title: { kind: "text", text: "Mac Studio" },

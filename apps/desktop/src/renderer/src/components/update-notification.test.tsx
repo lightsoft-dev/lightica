@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@multica/core/i18n/react";
 import { RESOURCES } from "@multica/views/locales";
@@ -92,13 +92,16 @@ describe("UpdateNotification", () => {
       expect(await screen.findByText("Lightica v0.11.0-20261120")).toBeInTheDocument();
     });
 
-    it("stays dismissed until a newer version appears", () => {
+    it("stays dismissed until a newer version appears", async () => {
       renderBanner();
       act(() => downloadState(manual));
       fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
 
       act(() => downloadState(manual));
-      expect(screen.queryByText("Lightica v0.11.0-20261120")).not.toBeInTheDocument();
+      // The banner leaves through its exit animation (upstream v0.12.1).
+      await waitFor(() =>
+        expect(screen.queryByText("Lightica v0.11.0-20261120")).not.toBeInTheDocument(),
+      );
 
       act(() => downloadState({ ...manual, version: "0.11.0-20261121" }));
       expect(screen.getByText("Lightica v0.11.0-20261121")).toBeInTheDocument();

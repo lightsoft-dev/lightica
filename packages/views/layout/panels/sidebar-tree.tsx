@@ -28,7 +28,7 @@ import { type IssueAgentState, useIssueAgentState } from "../../issues/surface/u
 import { useStatusLabel } from "../../issues/utils/status-label";
 import { DeferredPopup } from "../../common/deferred-popup";
 import { useT, useTimeAgo } from "../../i18n";
-import { PANEL_ROW_CLASS, panelRowAnchor, panelRowStateClass } from "../panel-nav";
+import { PANEL_ROW_CLASS, panelRowAnchor, panelRowStateClass, usePanelDisclosureSettled } from "../panel-nav";
 
 /** A working agent's issue title: dimmer at rest and a wider highlight than
  *  the default shimmer, so the sweep reads at sidebar size. */
@@ -362,6 +362,7 @@ export function SidebarIssueList({
   const locating = useSidebarTreeStore(
     (s) => !!activeIssueId && s.locate?.source === source && s.locate.issueId === activeIssueId,
   );
+  const settled = usePanelDisclosureSettled();
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== "ArrowLeft") return;
@@ -410,7 +411,7 @@ export function SidebarIssueList({
                 issue={issue}
                 href={p.issueDetail(issueRouteRef(issue))}
                 active={issue.id === activeIssueId}
-                locating={locating && issue.id === activeIssueId}
+                locating={locating && settled && issue.id === activeIssueId}
                 statusColor={statusCatalog.colorOf(issue.status)}
                 statusIcon={statusCatalog.iconOf(issue.status)}
                 statusLabel={statusLabel(issue.status)}
@@ -455,7 +456,13 @@ export function IssueAgentBadge({ agents }: { agents: NonNullable<IssueAgentStat
   const { t } = useT("issues");
   return (
     <>
-      <AgentAvatarStack agentIds={agents.agentIds} size="xs" max={2} opacity={agents.running ? "full" : "half"} />
+      <AgentAvatarStack
+        agentIds={agents.agentIds}
+        actors={agents.actors}
+        size="xs"
+        max={2}
+        opacity={agents.running ? "full" : "half"}
+      />
       <span className="sr-only">
         {agents.running
           ? t(($) => $.agent_activity.status_running)

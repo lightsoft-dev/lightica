@@ -172,7 +172,10 @@ func (s *server) handleLimits(w http.ResponseWriter, r *http.Request) {
 	member := false
 	for _, m := range members {
 		if m.UserID == user.ID {
-			member = true
+			// A guest (an outside collaborator, LIGH-282) sees no limits. The
+			// backend already leaves guest rows out of this list for clients
+			// without the workspace-guests capability; this holds if one shows.
+			member = m.Role == "owner" || m.Role == "admin" || m.Role == "member"
 			break
 		}
 	}

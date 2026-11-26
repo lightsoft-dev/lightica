@@ -75,6 +75,37 @@ make web-dev    # http://localhost:13100, API는 운영 127.0.0.1:8080
 - 코드는 `packages/core/shortcuts/definitions.ts`의 `eventKey` 한 곳입니다. 글자를 직접 비교하던 곳(첨부 미리보기 `G`/`I`, 산출물 개요 `G`, 피커의 `Ctrl+N/J/P/K`)은 `shortcutFromEvent(e)?.key`로 바꿨습니다. 릴리스 merge에서 충돌이 나면 이 파일들부터 확인하세요.
 - 데스크톱 앱 고정 단축키(`⌘W` 탭 닫기, `⌘R` 새로고침 차단, `⇧⌘N` 새 창)도 같은 규칙입니다(`apps/desktop/src/main/keyboard-shortcuts.ts`의 `letterKey`). 고치기 전에는 한글 상태의 `⌘W`가 기본 메뉴의 창 닫기로 넘어갔습니다. 숫자·기호 고정 단축키(`⌘1`~`⌘9`, 줌, `⌘,`)는 한글 배열도 같은 글자를 내므로 그대로입니다.
 
+### 외부 협업자 (guest, LIGH-282)
+
+고객사·협력사 사람에게 **열어 준 프로젝트와 그 이슈만** 보여 줍니다. upstream의 `guest` 역할(MUL-9420, v0.12.0부터)을 그대로 씁니다. 같은 워크스페이스에 두고, 공개 프로젝트도 비공개 프로젝트도 열 수 있습니다. 제한은 backend가 겁니다(API·CLI·검색·인박스). self-host라 유료 기능 제한은 없습니다. upstream 설명은 `apps/docs/content/docs/members-roles.ko.mdx`의 "게스트"에 있습니다.
+
+**guest가 할 수 있는 것**
+- 열어 준 프로젝트와 그 이슈 보기, 코멘트, 반응, 구독, 인박스.
+- 팀원 이름과 이메일, 그리고 자기 이슈에 나오는 에이전트의 이름·아바타가 보입니다. 다른 guest는 프로젝트를 같이 쓸 때만 보입니다.
+
+**막히는 것**
+- 이슈 생성·수정(상태·담당자 포함). 지정 프로젝트 안에서 이슈를 만들고 고치는 것은 별도 작업으로 진행합니다.
+- 열지 않은 프로젝트(공개 프로젝트 포함), 프로젝트가 없는 이슈, 그런 이슈의 알림.
+- 에이전트 실행: 할당, 채팅, 에이전트 멘션(코멘트가 거부됨)이 모두 막힙니다. guest가 에이전트 담당 이슈에 코멘트를 달아도 task가 생기지 않습니다. 데몬 등록도 막힙니다.
+- 에이전트 상세, 스쿼드, 런타임, Autopilot, 스킬, 대시보드, 워크스페이스 설정·초대, 프로젝트 생성·설정, 포크 API(`/api/lightsoft/*`, 채팅 모델 선택), 시크릿 매니저, 구독 한도, 터미널. 허용 목록은 `server/internal/middleware/guest.go`의 `guestRoutes`이고, 새 API는 기본으로 막힙니다.
+- WebSocket은 받지 않습니다. 화면은 폴링으로 갱신됩니다.
+
+**추가 (owner/admin)**
+1. 팀 클라이언트 **설정 → 멤버 → 멤버 초대**에서 역할을 **게스트**로 고르고 열어 줄 프로젝트를 고릅니다(최소 1개).
+2. tailnet 밖에서 들어오므로 Cloudflare Access의 Lightica 앱에 그 이메일을 허용하는 정책을 추가합니다(`lightsoft/access/README.md`). 팀원용 재사용 정책에는 넣지 않습니다.
+3. 상대가 `https://lightica.lightsoft.dev`에서 이메일 PIN으로 로그인해 초대를 수락합니다.
+
+**바꾸기·회수 (설정 → 멤버, 그 사람의 작업 메뉴)**
+- **접근 가능한 프로젝트 관리**: 프로젝트를 더하거나 뺍니다. 뺀 프로젝트는 바로 404가 됩니다. 전부 뺄 수는 없으니, 그때는 내보냅니다.
+- 전부 회수: 워크스페이스에서 내보내고, Cloudflare Access 정책에서도 이메일을 뺍니다. 그 사람의 PAT도 바로 막힙니다.
+- **멤버로 전환**하면 모든 공개 프로젝트와 에이전트에 접근합니다. 반대로 멤버를 게스트로 바꿀 수도 있지만, 외부 협업자는 새로 초대한 계정을 권합니다. 기존 멤버는 이미 만든 메신저 연결과 Autopilot이 남을 수 있습니다.
+
+**포크에서 챙긴 것**
+- 시크릿 매니저와 구독 한도 서비스는 role이 owner/admin/member일 때만 받습니다. 지금은 backend가 guest 행을 빼고 멤버 목록을 주기 때문에 이미 "구성원 아님"으로 막혀 있습니다. 서비스가 `X-Client-Capabilities: workspace-guests-v1`을 보내지 않기 때문입니다. 역할 검사는 그 동작이 바뀌어도 막히게 하려고 둡니다. 시크릿 권한 대상에서도 guest는 빠집니다. 이 변경은 `bash lightsoft/secrets/install.sh`, `bash lightsoft/usage/install.sh`로 설치해야 반영됩니다.
+- 시크릿·구독 한도 화면과 팀 메뉴는 guest에게 보이지 않습니다. guest 화면에는 작업 공간만 있습니다.
+- 회귀 시나리오: 격리 backend(dev 로그인 코드 사용)에 대고 `node lightsoft/guest/scenario.mjs http://127.0.0.1:<port>`를 실행합니다. `lightsoft/backend/docker-compose.verify.yml`을 별도 프로젝트 이름과 포트로 띄워 씁니다. `MULTICA_CLI=<multica 경로>`를 주면 CLI도, `SECRETS_URL`·`USAGE_URL`을 주면 같은 backend에 붙인 사이드카도 확인합니다. 운영 주소에는 실행되지 않게 막혀 있습니다.
+- 주의: 팀원이 이슈에 걸어 둔 깨우기(wakeup)는 그 팀원 권한으로 에이전트를 돌립니다. upstream은 깨우기의 코멘트 이벤트에서 guest 코멘트를 따로 거르지 않습니다. 그래서 guest에게 연 프로젝트의 이슈에는 "새 코멘트가 오면" 깨우기를 걸지 않거나, actor 필터로 팀원·에이전트만 받게 합니다.
+
 ## 포크 backend (운영)
 
 운영 backend 컨테이너(`multica-backend-1`)는 이 브랜치로 빌드한 이미지 `localhost/lightsoft/multica-backend`를 씁니다(LIGH-190). 운영 웹(:3443), DB, Tailscale 설정은 upstream 그대로입니다. 포크 backend는 upstream API에 팀 기능만 더한 것이라, 운영 웹과 모바일도 지금처럼 동작합니다.

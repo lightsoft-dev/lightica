@@ -6,7 +6,7 @@ import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
 import { cn } from "@multica/ui/lib/utils";
 import { agentListOptions, memberListOptions, squadListOptions } from "@multica/core/workspace/queries";
 import { resolvePublicFileUrl } from "@multica/core/workspace/avatar-url";
-import type { Agent } from "@multica/core/types";
+import type { Agent, MemberWithUser } from "@multica/core/types";
 import type { PrincipalType } from "@multica/core/lightsoft/secrets";
 
 export interface Principal {
@@ -14,7 +14,10 @@ export interface Principal {
   id: string;
   name: string;
   avatarUrl: string | null;
-  /** Archived agents and squads stay resolvable for history but are not offered for new grants. */
+  /**
+   * Archived agents and squads, and guests, stay resolvable for history but are
+   * not offered for new grants. The secrets service refuses guests (LIGH-282).
+   */
   archived: boolean;
 }
 
@@ -28,6 +31,16 @@ export interface PrincipalDirectory {
 
 const EMPTY: never[] = [];
 
+export function memberPrincipal(m: MemberWithUser): Principal {
+  return {
+    type: "member",
+    id: m.user_id,
+    name: m.name || m.email,
+    avatarUrl: m.avatar_url,
+    archived: m.role === "guest",
+  };
+}
+
 /** Names and avatars for the members, agents and squads a secret can be granted to. */
 export function usePrincipalDirectory(wsId: string): PrincipalDirectory {
   const { data: members = EMPTY } = useQuery({ ...memberListOptions(wsId), enabled: !!wsId });
@@ -35,13 +48,7 @@ export function usePrincipalDirectory(wsId: string): PrincipalDirectory {
   const { data: squads = EMPTY } = useQuery(squadListOptions(wsId));
 
   return useMemo(() => {
-    const memberPrincipals: Principal[] = members.map((m) => ({
-      type: "member",
-      id: m.user_id,
-      name: m.name || m.email,
-      avatarUrl: m.avatar_url,
-      archived: false,
-    }));
+    const memberPrincipals: Principal[] = members.map(memberPrincipal);
     const agentPrincipals: Principal[] = agents.map((a) => ({
       type: "agent",
       id: a.id,

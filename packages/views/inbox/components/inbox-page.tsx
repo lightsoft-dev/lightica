@@ -103,18 +103,21 @@ import { inboxTabFromParam, inboxTabHref, type InboxTab, type InboxView } from "
 import { InboxTabs } from "./inbox-tabs";
 import { InboxArchivedBar } from "./inbox-bar";
 import { SnoozedInboxList } from "./snoozed-inbox-list";
-import { useArchivedInboxRows, useSnoozedInboxRows } from "./use-inbox-tab-rows";
+import { useArchivedInboxRows, useInboxTabPrefetch, useSnoozedInboxRows } from "./use-inbox-tab-rows";
 import { useTypeLabels } from "./inbox-detail-label";
 import {
   getInboxDisplayTitle,
   inboxRowHref,
   isAutopilotQuotaNotice,
+  isQuotaNotice,
   isQuickCreateOutcome,
   resolveDetailItem,
 } from "./inbox-display";
 import { AutopilotQuotaNotice } from "./autopilot-quota-notice";
+import { AppCallQuotaNotice } from "./app-call-quota-notice";
 import { InboxEmptyState } from "./inbox-empty-state";
 import { InboxKeptActions, useKeptInboxRowText } from "./inbox-kept-actions";
+import { InboxSettledMoreMenu } from "./inbox-more-menu";
 import { inboxListLoad, useFilteredInboxRows } from "./use-filtered-inbox-rows";
 import { useKeptOpenInboxRow } from "./use-kept-open-inbox-row";
 import { useAutoArchiveCause } from "./use-auto-archive-cause";
@@ -190,12 +193,14 @@ export function InboxPage() {
   const items = useMemo(() => deduplicateInboxItems(rawItems), [rawItems]);
   // The filters read every notification of an issue, not just its newest.
   const activeRows = useMemo(() => rawItems.filter((item) => !item.archived), [rawItems]);
+  const archived = useArchivedInboxRows(wsId, isArchivedView);
   const {
     query: archiveQuery,
     items: archivedItems,
     filters: archiveFilters,
     issueFieldsSupport: archiveIssueFields,
-  } = useArchivedInboxRows(wsId, isArchivedView);
+  } = archived;
+  const prefetchTab = useInboxTabPrefetch(wsId, archived);
   const fetchNextArchivedPage = archiveQuery.fetchNextPage;
   const loadNextArchivedPage = useCallback(() => { void fetchNextArchivedPage(); }, [fetchNextArchivedPage]);
   const archivedLoading = archiveQuery.isLoading;
@@ -868,6 +873,7 @@ export function InboxPage() {
         <InboxTabs
           tab={tab}
           onSelect={setTab}
+          onPrefetch={prefetchTab}
           unread={unreadCount}
           snoozed={snoozed.rows.length}
           size="page"
@@ -1074,40 +1080,34 @@ export function InboxPage() {
   ) : null;
 
   // A notification without an issue that left the Inbox on its own: say so
-  // above it, with the way back and the way on. An issue's bar does this for
-  // an issue's notification.
+  // in a group floating over it, with the way back and the way on. An issue's
+  // group does this for an issue's notification.
+  const keptStatus = settledNotice ? keptText.status(settledNotice, settledCause) : null;
   const keptNotice =
-    settledNotice && detailItem && inboxRowKey(detailItem) === settledNotice.key ? (
-      <InboxKeptActions
-        label={keptText.notice(settledNotice, settledCause)}
-        onUndo={() => void restoreInbox(settledNotice.item.id, { quiet: true })}
-        next={nextInboxRow(listedItems, settledNotice.key)}
-        onNext={() => advanceSelectionPast(settledNotice.item.id, listedItems)}
-      />
+    settledNotice && keptStatus && detailItem && inboxRowKey(detailItem) === settledNotice.key ? (
+      <div className="@container/inbox-bar pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center px-6 max-md:above-chat-launcher">
+        <InboxKeptActions
+          label={keptStatus.label}
+          hint={keptStatus.hint}
+          undoLabel={keptStatus.undo}
+          onUndo={() => void restoreInbox(settledNotice.item.id, { quiet: true })}
+          next={nextInboxRow(listedItems, settledNotice.key)}
+          onNext={() => advanceSelectionPast(settledNotice.item.id, listedItems)}
+        />
+      </div>
     ) : null;
 
   // The issue the detail shows: the open notification's, or on the Snoozed
   // tab the snoozed issue itself.
   const detailIssueId = isSnoozedView ? detailKey || null : (detailItem?.issue_id ?? null);
-  const TabIcon = tab === "archived" ? Archive : tab === "snoozed" ? AlarmClock : Inbox;
   const inboxHost = (issueId: string): IssueDetailInboxHost => ({
-    // A phone's back control already names the list.
-    crumb: isCompact
-      ? undefined
-      : {
-          href: inboxTabHref(wsPaths, tab),
-          className: "flex min-w-0 items-center gap-1",
-          label: (
-            <>
-              <TabIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{tabLabel}</span>
-            </>
-          ),
-        },
     item: tab === "inbox" ? (detailItem ?? undefined) : undefined,
     bar: (issueActions) =>
       isArchivedView && detailItem ? (
-        <InboxArchivedBar item={detailItem} onRestore={() => handleUnarchive(detailItem.id)} />
+        <InboxArchivedBar
+          onRestore={() => handleUnarchive(detailItem.id)}
+          more={<InboxSettledMoreMenu issueId={issueId} />}
+        />
       ) : (
         <IssueInboxBar issueId={issueId} issueActions={issueActions} movingOn={detailSwapping} isSnoozedView={isSnoozedView} />
       ),
@@ -1172,7 +1172,7 @@ export function InboxPage() {
     {keptNotice}
     <div key={detailItem.id} className="animate-inbox-enter-fade p-6">
       <h2 className="text-title font-semibold">
-        {isAutopilotQuotaNotice(detailItem.type)
+        {isQuotaNotice(detailItem.type)
           ? typeLabels[detailItem.type]
           : getInboxDisplayTitle(detailItem)}
       </h2>
@@ -1184,6 +1184,8 @@ export function InboxPage() {
           item={detailItem}
           onOpenRecovery={showAutopilotQuotaRecoveryPrompt}
         />
+      ) : detailItem.type === "app_tool_calls_quota_exceeded" ? (
+        <AppCallQuotaNotice item={detailItem} />
       ) : detailItem.type === "project_owner_joined" && detailItem.details?.joined_by ? (
         <div className="mt-4 text-body leading-relaxed text-foreground">
           {t(($) => $.detail.project_owner_joined_body, { name: detailItem.details.joined_by })}
@@ -1395,7 +1397,7 @@ export function InboxPage() {
       // A notification body is a plain block with no header to host a leading
       // slot and no scroller of its own, so this branch keeps supplying both.
       return (
-        <div className="flex flex-1 flex-col min-h-0">
+        <div className="relative flex flex-1 flex-col min-h-0">
           {compactBackBar}
           <div className="flex-1 min-h-0 overflow-y-auto">{detailContent}</div>
         </div>
@@ -1458,7 +1460,7 @@ export function InboxPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+    <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {detailContent ?? emptyDetail}
     </div>
   );

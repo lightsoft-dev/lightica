@@ -29,6 +29,7 @@ export default defineConfig({
     globals: true,
     include: [
       "app.config.test.ts",
+      "lightica.test.ts",
       "lib/**/*.test.ts",
       "data/**/*.test.ts",
       "components/issue/run-cancel-button.test.ts",

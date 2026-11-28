@@ -1,5 +1,7 @@
 # Multica Mobile (iOS)
 
+> **Lightsoft fork:** this build is **Lightica** — bundle ids `dev.lightsoft.lightica.mobile[.staging|.dev]`, the `lightica://` scheme, and a production variant that talks to the team client (`https://mac-studio.taile83671.ts.net:3444`, Tailscale required). The defaults named below (`ai.multica.mobile`, `multica.ai`) are upstream's. See [`lightsoft/mobile/README.md`](../../lightsoft/mobile/README.md).
+
 Expo + React Native iOS client for Multica. Independent from web/desktop — shares types and pure utilities from `@multica/core/`. See [`AGENTS.md`](./AGENTS.md) for mobile architecture and development rules; `package.json` records the current dependency versions.
 
 ## Just want to use it on your phone? (no development)
